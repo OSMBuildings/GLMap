@@ -85,16 +85,15 @@ GLMap.prototype = {
     setInterval(this._render.bind(this), 17);
   },
 
-   _render: function() {
+  _render: function() {
     requestAnimationFrame(function() {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       for (var i = 0; i < this._layers.length; i++) {
         this._layers[i].render(this._projection);
       }
-      this._emit('render', gl);
     }.bind(this));
   },
-  
+
   _onDragStart: function(e) {
     if (!this._hasTouch && e.button !== 0) {
       return;
@@ -108,8 +107,8 @@ GLMap.prototype = {
       this._rotation = 0;
     }
 
-    this._x = this._origin.x+e.clientX;
-    this._y = this._origin.y+e.clientY;
+    this._x = e.clientX;
+    this._y = e.clientY;
 
     this._isDragging = true;
   },
@@ -125,7 +124,13 @@ GLMap.prototype = {
       e = e.touches[0];
     }
 
-    this.setCenter(unproject(this._x-e.clientX, this._y-e.clientY, this._worldSize));
+    var dx = e.clientX-this._x;
+    var dy = e.clientY-this._y;
+    var r = this._rotatePoint(dx, dy, this._rotation * Math.PI / 180);
+    this.setCenter(unproject(this._origin.x-r.x, this._origin.y-r.y, this._worldSize));
+
+    this._x = e.clientX;
+    this._y = e.clientY;
   },
 
   _onDragEnd: function(e) {
@@ -134,7 +139,18 @@ GLMap.prototype = {
     }
 
     this._isDragging = false;
-    this.setCenter(unproject(this._x-e.clientX, this._y-e.clientY, this._worldSize));
+
+    var dx = e.clientX-this._x;
+    var dy = e.clientY-this._y;
+    var r = this._rotatePoint(dx, dy, this._rotation * Math.PI / 180);
+    this.setCenter(unproject(this._origin.x-r.x, this._origin.y-r.y, this._worldSize));
+  },
+
+  _rotatePoint: function(x, y, angle) {
+    return {
+      x: Math.cos(angle)*x - Math.sin(angle)*y,
+      y: Math.sin(angle)*x + Math.cos(angle)*y
+    };
   },
 
   _onGestureChange: function(e) {
