@@ -83,13 +83,12 @@ GLMap.prototype = {
     setInterval(this._render.bind(this), 17);
   },
 
-   _render: function() {
+  _render: function() {
     requestAnimationFrame(function() {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       for (var i = 0; i < this._layers.length; i++) {
         this._layers[i].render(this._projection);
       }
-      this._emit('render', gl);
     }.bind(this));
   },
   
