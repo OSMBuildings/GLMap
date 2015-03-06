@@ -76,7 +76,7 @@ GLMap.prototype = {
       throw ex;
     }
 
-    this.setSize({ width:container.clientWidth, height:container.clientHeight });
+    this.setSize({ width:container.offsetWidth, height:container.offsetHeight });
 
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
@@ -196,10 +196,13 @@ GLMap.prototype = {
   },
 
   _onResize: function() {
-    var canvas = gl.canvas;
-    if (this._size.width !== canvas.clientWidth  || this._size.height !== canvas.clientHeight) {
-      this.setSize({ width:canvas.clientWidth, height:canvas.clientHeight });
-    }
+    clearTimeout(this._resizeTimer);
+    this._resizeTimer = setTimeout(function() {
+      var container = this._container;
+      if (this._size.width !== container.offsetWidth || this._size.height !== container.offsetHeight) {
+        this.setSize({ width:container.offsetWidth, height:container.offsetHeight });
+      }
+    }.bind(this), 250);
   },
 
   _emit: function(type) {
@@ -619,7 +622,7 @@ Grid.prototype = {
       this.update();
     }.bind(this));
   },
-  
+
   remove: function() {
     this._map.remove(this);
     this._map = null;

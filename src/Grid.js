@@ -161,7 +161,7 @@ Grid.prototype = {
       this.update();
     }.bind(this));
   },
-  
+
   remove: function() {
     this._map.remove(this);
     this._map = null;
