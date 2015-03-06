@@ -34,9 +34,10 @@ GLMap.prototype = {
   },
 
   _initEvents: function(container) {
-    this._x = 0;
-    this._y = 0;
-    this._scale = 0;
+    this._startX = 0;
+    this._startY = 0;
+    this._startZoom = 0;
+    this._startRotation = 0;
 
     this._hasTouch = ('ontouchstart' in window);
     this._dragStartEvent = this._hasTouch ? 'touchstart' : 'mousedown';
@@ -76,13 +77,25 @@ GLMap.prototype = {
       throw ex;
     }
 
-    this.setSize({ width:container.offsetWidth, height:container.offsetHeight });
+    addListener(canvas, 'webglcontextlost', function(e) {
+      cancelEvent(e);
+alert('CONTEXT LOST');
+      clearInterval(this._loop);
+    }.bind(this));
+
+    addListener(canvas, 'webglcontextrestored', this._initGL.bind(this));
+
+    this._initGL();
+  },
+
+  _initGL: function() {
+    this.setSize({ width:this._container.offsetWidth, height:this._container.offsetHeight });
 
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
     gl.cullFace(gl.FRONT);
 
-    setInterval(this._render.bind(this), 17);
+    this._loop = setInterval(this._render.bind(this), 17);
   },
 
   _render: function() {
@@ -104,11 +117,12 @@ GLMap.prototype = {
     if (this._hasTouch) {
       if (e.touches.length > 1) return;
       e = e.touches[0];
-      this._rotation = 0;
+      this._startRotation = this._rotation;
+      this._startRotation = this._zoom;
     }
 
-    this._x = e.clientX;
-    this._y = e.clientY;
+    this._startX = e.clientX;
+    this._startY = e.clientY;
 
     this._isDragging = true;
   },
@@ -124,13 +138,13 @@ GLMap.prototype = {
       e = e.touches[0];
     }
 
-    var dx = e.clientX-this._x;
-    var dy = e.clientY-this._y;
+    var dx = e.clientX-this._startX;
+    var dy = e.clientY-this._startY;
     var r = this._rotatePoint(dx, dy, this._rotation * Math.PI / 180);
     this.setCenter(unproject(this._origin.x-r.x, this._origin.y-r.y, this._worldSize));
 
-    this._x = e.clientX;
-    this._y = e.clientY;
+    this._startX = e.clientX;
+    this._startY = e.clientY;
   },
 
   _onDragEnd: function(e) {
@@ -140,8 +154,8 @@ GLMap.prototype = {
 
     this._isDragging = false;
 
-    var dx = e.clientX-this._x;
-    var dy = e.clientY-this._y;
+    var dx = e.clientX-this._startX;
+    var dy = e.clientY-this._startY;
     var r = this._rotatePoint(dx, dy, this._rotation * Math.PI / 180);
     this.setCenter(unproject(this._origin.x-r.x, this._origin.y-r.y, this._worldSize));
   },
@@ -156,21 +170,15 @@ GLMap.prototype = {
   _onGestureChange: function(e) {
     cancelEvent(e);
     var
-      r = e.rotation-this._rotation,
-      s = e.scale-this._scale;
+      rotation = e.rotation-this._startRotation,
+      scale = e.scale*this._startZoom;
 
-    if (e > 5 || e < -5) {
-      s = 0;
-    }
+    // if (e > 5 || e < -5) {
+      // s = 0;
+    // }
 
-    e.deltaRotation = r;
-    e.deltaScale = s;
-
-//  this.setZoom();
-//  this.setRotation();
-
-    this._rotation = e.rotation;
-    this._scale = e.scale;
+    this.setRotation(rotation);
+    this.setZoom(zoom);
   },
 
   _onDoubleClick: function(e) {
