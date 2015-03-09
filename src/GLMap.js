@@ -34,8 +34,8 @@ GLMap.prototype = {
   _initEvents: function(container) {
     this._startX = 0;
     this._startY = 0;
-    this._startZoom = 0;
     this._startRotation = 0;
+    this._startZoom = 0;
 
     this._hasTouch = ('ontouchstart' in window);
     this._dragStartEvent = this._hasTouch ? 'touchstart' : 'mousedown';
@@ -77,7 +77,6 @@ GLMap.prototype = {
 
     addListener(canvas, 'webglcontextlost', function(e) {
       cancelEvent(e);
-alert('CONTEXT LOST');
       clearInterval(this._loop);
     }.bind(this));
 
@@ -112,11 +111,11 @@ alert('CONTEXT LOST');
 
     cancelEvent(e);
 
-    if (this._hasTouch) {
-      if (e.touches.length > 1) return;
+    if (this._hasTouch && e.touches.length > 1) {
       e = e.touches[0];
       this._startRotation = this._rotation;
-      this._startRotation = this._zoom;
+      this._startZoom = this._zoom;
+      return;
     }
 
     this._startX = e.clientX;
@@ -167,16 +166,8 @@ alert('CONTEXT LOST');
 
   _onGestureChange: function(e) {
     cancelEvent(e);
-    var
-      rotation = e.rotation-this._startRotation,
-      scale = e.scale*this._startZoom;
-
-    // if (e > 5 || e < -5) {
-      // s = 0;
-    // }
-
-    this.setRotation(rotation);
-    this.setZoom(zoom);
+    this.setRotation(this._startRotation-e.rotation);
+    this.setZoom(e.scale*this._startZoom);
   },
 
   _onDoubleClick: function(e) {
