@@ -105,17 +105,19 @@ GLMap.prototype = {
   },
 
   _onDragStart: function(e) {
-    if (!this._hasTouch && e.button !== 0) {
+    if (e.button !== undefined && e.button !== 0) {
       return;
     }
 
     cancelEvent(e);
 
-    if (this._hasTouch && e.touches.length > 1) {
-      e = e.touches[0];
+    if (e.touches !== undefined) {
       this._startRotation = this._rotation;
       this._startZoom = this._zoom;
-      return;
+      if (e.touches.length > 1) {
+        return;
+      }
+      e = e.touches[0];
     }
 
     this._startX = e.clientX;
@@ -129,9 +131,10 @@ GLMap.prototype = {
       return;
     }
 
-    cancelEvent(e);
-    if (this._hasTouch) {
-      if (e.touches.length > 1) return;
+    if (e.touches !== undefined) {
+      if (e.touches.length > 1) {
+        return;
+      }
       e = e.touches[0];
     }
 
@@ -147,6 +150,13 @@ GLMap.prototype = {
   _onDragEnd: function(e) {
     if (!this._isDragging) {
       return;
+    }
+
+    if (e.touches !== undefined) {
+      if (e.touches.length > 1) {
+        return;
+      }
+      e = e.touches[0];
     }
 
     this._isDragging = false;
@@ -167,7 +177,7 @@ GLMap.prototype = {
   _onGestureChange: function(e) {
     cancelEvent(e);
     this.setRotation(this._startRotation-e.rotation);
-    this.setZoom(e.scale*this._startZoom);
+    this.setZoom(this._startZoom + (e.scale - 1));
   },
 
   _onDoubleClick: function(e) {
@@ -345,7 +355,7 @@ GLMap.prototype = {
   },
 
   setTilt: function(tilt) {
-    tilt = clamp(parseFloat(tilt), 0, 90);
+    tilt = clamp(parseFloat(tilt), 0, 70);
     if (this._tilt !== tilt) {
       this._tilt = tilt;
       this._emit('change');
