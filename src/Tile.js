@@ -5,8 +5,8 @@ function Tile(x, y, z, img) {
   this.z = z;
 
   this._texture = this._createTexture(img);
-  this._vertexBuffer = this._createBuffer(3, new Float32Array([0, 0, 0, 255, 0, 0, 0, 255, 0, 255, 255, 0]));
-  this._texCoordBuffer = this._createBuffer(2, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]));
+  this._vertexBuffer = this._createBuffer(3, new Float32Array([255, 255, 0, 255, 0, 0, 0, 255, 0, 0, 0, 0]));
+  this._texCoordBuffer = this._createBuffer(2, new Float32Array([1, 1, 1, 0, 0, 1, 0, 0]));
 }
 
 Tile.prototype = {

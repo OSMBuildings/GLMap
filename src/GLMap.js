@@ -17,6 +17,8 @@ var GLMap = function(containerId, options) {
   this._initState(options);
   this._initEvents(this._container);
   this._initRenderer(this._container);
+
+  this.setDisabled(options.disabled);
 };
 
 GLMap.prototype = {
@@ -90,7 +92,6 @@ GLMap.prototype = {
 
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
-    gl.cullFace(gl.FRONT);
 
     this._loop = setInterval(this._render.bind(this), 17);
   },
@@ -105,7 +106,7 @@ GLMap.prototype = {
   },
 
   _onDragStart: function(e) {
-    if (e.button !== undefined && e.button !== 0) {
+    if (this._isDisabled || (e.button !== undefined && e.button !== 0)) {
       return;
     }
 
@@ -127,7 +128,7 @@ GLMap.prototype = {
   },
 
   _onDragMove: function(e) {
-    if (!this._isDragging) {
+    if (this._isDisabled || !this._isDragging) {
       return;
     }
 
@@ -148,7 +149,7 @@ GLMap.prototype = {
   },
 
   _onDragEnd: function(e) {
-    if (!this._isDragging) {
+    if (this._isDisabled || !this._isDragging) {
       return;
     }
 
@@ -175,19 +176,27 @@ GLMap.prototype = {
   },
 
   _onGestureChange: function(e) {
+    if (this._isDisabled) {
+      return;
+    }
     cancelEvent(e);
     this.setRotation(this._startRotation-e.rotation);
     this.setZoom(this._startZoom + (e.scale - 1));
   },
 
   _onDoubleClick: function(e) {
+    if (this._isDisabled) {
+      return;
+    }
     cancelEvent(e);
     this.setZoom(this._zoom + 1, e);
   },
 
   _onMouseWheel: function(e) {
+    if (this._isDisabled) {
+      return;
+    }
     cancelEvent(e);
-
     var delta = 0;
     if (e.wheelDeltaY) {
       delta = e.wheelDeltaY;
@@ -233,6 +242,10 @@ GLMap.prototype = {
         return;
       }
     }
+  },
+
+  setDisabled: function(flag) {
+    this._isDisabled = !!flag;
   },
 
   on: function(type, listener) {
