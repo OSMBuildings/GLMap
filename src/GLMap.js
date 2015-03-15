@@ -26,11 +26,17 @@ GLMap.prototype = {
   _initState: function(options) {
     this._center = {};
     this._size = { width:0, height:0 };
-
+    options = State.load(options);
     this.setCenter(options.center || { latitude:52.52000, longitude:13.41000 });
     this.setZoom(options.zoom || this.minZoom);
     this.setRotation(options.rotation || 0);
     this.setTilt(options.tilt || 0);
+
+    this.on('change', function() {
+      State.save(this);
+    }.bind(this));
+
+    State.save(this);
   },
 
   _initEvents: function(container) {

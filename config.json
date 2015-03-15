@@ -8,6 +8,7 @@
 
   "src": [
     "src/GLMap.js",
+    "src/State.js",
     "src/variables.js",
     "src/util.js",
     "src/shaders.js",
