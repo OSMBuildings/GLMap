@@ -82,7 +82,7 @@ module.exports = function(grunt) {
   grunt.registerTask('default', 'Development build', function() {
     grunt.log.writeln('\033[1;36m'+ grunt.template.date(new Date(), 'yyyy-mm-dd HH:MM:ss') +'\033[0m');
 
-    grunt.task.run('shaders');
+//    grunt.task.run('shaders');
     grunt.task.run('concat');
     grunt.task.run('uglify');
   });
