@@ -1,0 +1,21 @@
+{
+  "lib": [
+    "node_modules/color/dist/Color.debug.js",
+    "lib/GLX.debug.js"
+  ],
+
+  "src": [
+    "src/index.js",
+    "src/Events.js",
+    "src/Interaction.js",
+    "src/Activity.js",
+    "src/Map.js",
+    "src/Layers.js",
+    "src/Renderer.js",
+    "src/State.js",
+    "src/TileLayer.js",
+    "src/MapTile.js",
+    "src/variables.js",
+    "src/util.js"
+  ]
+}
