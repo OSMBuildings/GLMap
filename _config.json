@@ -1,0 +1,18 @@
+{
+  "shaders": {
+    "tileplane": {
+      "attributes": ["aPosition", "aTexCoord"],
+      "uniforms": ["uMatrix", "uTileImage"]
+    }
+  },
+
+  "src": [
+    "src/GLMap.js",
+    "src/variables.js",
+    "src/util.js",
+    "src/shaders.js",
+    "src/Grid.js",
+    "src/Tile.js",
+    "src/Shader.js"
+  ]
+}
