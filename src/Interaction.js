@@ -1,150 +1,120 @@
 
-var Interaction = {};
+var Interaction = function(map, container) {
+  this.map = map;
 
-(function() {
-
-  function addListener(target, type, fn) {
-    target.addEventListener(type, fn, false);
+  if ('ontouchstart' in global) {
+    addListener(container, 'touchstart', this.onTouchStart.bind(this));
+    addListener(document, 'touchmove', this.onTouchMove.bind(this));
+    addListener(document, 'touchend', this.onTouchEnd.bind(this));
+    addListener(container, 'gesturechange', this.onGestureChange.bind(this));
+  } else {
+    addListener(container, 'mousedown', this.onMouseDown.bind(this));
+    addListener(document, 'mousemove', this.onMouseMove.bind(this));
+    addListener(document, 'mouseup', this.onMouseUp.bind(this));
+    addListener(container, 'dblclick', this.onDoubleClick.bind(this));
+    addListener(container, 'mousewheel', this.onMouseWheel.bind(this));
+    addListener(container, 'DOMMouseScroll', this.onMouseWheel.bind(this));
   }
 
-  function removeListener(target, type, fn) {
-    target.removeEventListener(type, fn, false);
-  }
+  var resizeDebounce;
+  addListener(global, 'resize', function() {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(function() {
+      map.emit('resize');
+    }, 250);
+  });
+};
 
-  function cancelEvent(e) {
-    if (e.preventDefault) {
-      e.preventDefault();
+Interaction.prototype = {
+  setDisabled: function(flag) {
+    this.disabled = !!flag;
+  },
+
+  isDisabled: function() {
+    return !!this.disabled;
+  },
+
+  prevX: 0,
+  prevY: 0,
+  startX: 0,
+  startY: 0,
+  startZoom: 0,
+  prevRotation: 0,
+  prevTilt: 0,
+  disabled: false,
+  pointerIsDown: false,
+
+  onDoubleClick: function(e) {
+    if (this.disabled) {
+      return;
     }
-    if (e.stopPropagation) {
-      e.stopPropagation();
-    }
-    e.returnValue = false;
-  }
+    cancelEvent(e);
+    this.map.setZoom(this.map.zoom + 1, e);
+  },
 
-  //***************************************************************************
-
-  var
-    prevX = 0, prevY = 0,
-    startX = 0, startY  = 0,
-    startZoom = 0,
-    prevRotation = 0,
-    prevTilt = 0,
-    button,
-    stepX, stepY,
-    pointerIsDown = false;
-
-  function onDragStart(e) {
-    if (Interaction.isDisabled || e.button > 1) {
+  onMouseDown: function(e) {
+    if (this.disabled || e.button>1) {
       return;
     }
 
     cancelEvent(e);
 
-    startZoom = Map.zoom;
-    prevRotation = Map.rotation;
-    prevTilt = Map.tilt;
+    this.startZoom = this.map.zoom;
+    this.prevRotation = this.map.rotation;
+    this.prevTilt = this.map.tilt;
 
-    stepX = 360/innerWidth;
-    stepY = 360/innerHeight;
+    this.startX = this.prevX = e.clientX;
+    this.startY = this.prevY = e.clientY;
 
-    if (e.touches === undefined) {
-      button = e.button;
-    } else {
-      if (e.touches.length > 1) {
-        return;
-      }
-      e = e.touches[0];
-    }
+    this.pointerIsDown = true;
 
-    startX = prevX = e.clientX;
-    startY = prevY = e.clientY;
+    this.map.emit('pointerdown', { x: e.clientX, y: e.clientY });
+  },
 
-    pointerIsDown = true;
-  }
-
-  function onDragMove(e) {
-    if (Interaction.isDisabled || !pointerIsDown) {
+  onMouseMove: function(e) {
+    if (this.disabled) {
       return;
     }
 
-    if (e.touches !== undefined) {
-      if (e.touches.length > 1) {
-        return;
-      }
-      e = e.touches[0];
-    }
-
-    if ((e.touches !== undefined || button === 0) && !e.altKey) {
-      moveMap(e);
-    } else {
-      prevRotation += (e.clientX - prevX)*stepX;
-      prevTilt     -= (e.clientY - prevY)*stepY;
-      Map.setRotation(prevRotation);
-      Map.setTilt(prevTilt);
-    }
-
-    prevX = e.clientX;
-    prevY = e.clientY;
-  }
-
-  function onDragEnd(e) {
-    if (Interaction.isDisabled || !pointerIsDown) {
-      return;
-    }
-
-    if (e.touches !== undefined) {
-      if (e.touches.length>1) {
-        return;
-      }
-      e = e.touches[0];
-    }
-
-    if ((e.touches !== undefined || button === 0) && !e.altKey) {
-      if (Math.abs(e.clientX-startX) < 5 && Math.abs(e.clientY-startY) < 5) {
-        onClick(e);
+    if (this.pointerIsDown) {
+      if (e.button === 0 && !e.altKey) {
+        this.moveMap(e);
       } else {
-        moveMap(e);
+        this.rotateMap(e);
+      }
+
+      this.prevX = e.clientX;
+      this.prevY = e.clientY;
+    }
+
+    this.map.emit('pointermove', { x: e.clientX, y: e.clientY });
+  },
+
+  onMouseUp: function(e) {
+    if (this.disabled) {
+      return;
+    }
+
+    // prevents clicks on other page elements
+    if (!this.pointerIsDown) {
+      return;
+    }
+
+    if (e.button === 0 && !e.altKey) {
+      if (Math.abs(e.clientX - this.startX)>5 || Math.abs(e.clientY - this.startY)>5) {
+        this.moveMap(e);
       }
     } else {
-      prevRotation += (e.clientX - prevX)*stepX;
-      prevTilt     -= (e.clientY - prevY)*stepY;
-      Map.setRotation(prevRotation);
-      Map.setTilt(prevTilt);
+      this.rotateMap(e);
     }
 
-    pointerIsDown = false;
-  }
+    this.pointerIsDown = false;
 
-  function onGestureChange(e) {
-    if (Interaction.isDisabled) {
-      return;
-    }
-    cancelEvent(e);
-    Map.setZoom(startZoom + (e.scale - 1));
-    Map.setRotation(prevRotation - e.rotation);
-//  Map.setTilt(prevTilt ...);
-  }
+    this.map.emit('pointerup', { x: e.clientX, y: e.clientY });
+  },
 
-  function onDoubleClick(e) {
-    if (Interaction.isDisabled) {
-      return;
-    }
-    cancelEvent(e);
-    Map.setZoom(Map.zoom + 1, e);
-  }
-
-  function onClick(e) {
-    if (Interaction.isDisabled) {
-      return;
-    }
-    cancelEvent(e);
-    // Interaction.getFeatureID({ x:e.clientX, y:e.clientY }, function(featureID) {
-    //   Events.emit('click', { target: { id:featureID } });
-    // });
-  }
-
-  function onMouseWheel(e) {
-    if (Interaction.isDisabled) {
+  onMouseWheel: function(e) {
+    if (this.disabled) {
       return;
     }
     cancelEvent(e);
@@ -158,52 +128,91 @@ var Interaction = {};
     }
 
     var adjust = 0.2*(delta>0 ? 1 : delta<0 ? -1 : 0);
-    Map.setZoom(Map.zoom + adjust, e);
-  }
+    this.map.setZoom(this.map.zoom + adjust, e);
+  },
 
-  function moveMap(e) {
-    var dx = e.clientX - prevX;
-    var dy = e.clientY - prevY;
-    var r = rotatePoint(dx, dy, Map.rotation*Math.PI/180);
-//    Map.setCenter({ x:Map.center.x-r.x, y:Map.center.y-r.y });
-  }
+  //***************************************************************************
+  //***************************************************************************
 
-  function rotatePoint(x, y, angle) {
-    return {
-      x: Math.cos(angle)*x - Math.sin(angle)*y,
-      y: Math.sin(angle)*x + Math.cos(angle)*y
-    };
-  }
+  onTouchStart: function(e) {
+    if (this.disabled) {
+      return;
+    }
+
+    cancelEvent(e);
+
+    this.startZoom = this.map.zoom;
+    this.prevRotation = this.map.rotation;
+    this.prevTilt = this.map.tilt;
+
+    if (e.touches.length>1) {
+      e = e.touches[0];
+    }
+
+    this.startX = this.prevX = e.clientX;
+    this.startY = this.prevY = e.clientY;
+
+    this.map.emit('pointerdown', { x: e.clientX, y: e.clientY });
+  },
+
+  onTouchMove: function(e) {
+    if (this.disabled) {
+      return;
+    }
+
+    if (e.touches.length>1) {
+      e = e.touches[0];
+    }
+
+    this.moveMap(e);
+
+    this.prevX = e.clientX;
+    this.prevY = e.clientY;
+
+    this.map.emit('pointermove', { x: e.clientX, y: e.clientY });
+  },
+
+  onTouchEnd: function(e) {
+    if (this.disabled) {
+      return;
+    }
+
+    if (e.touches.length>1) {
+      e = e.touches[0];
+    }
+
+    if (Math.abs(e.clientX - this.startX)>5 || Math.abs(e.clientY - this.startY)>5) {
+      this.moveMap(e);
+    }
+
+    this.map.emit('pointerup', { x: e.clientX, y: e.clientY });
+  },
+
+  onGestureChange: function(e) {
+    if (this.disabled) {
+      return;
+    }
+    cancelEvent(e);
+    this.map.setZoom(this.startZoom + (e.scale - 1));
+    this.map.setRotation(this.prevRotation - e.rotation);
+//  this.map.setTilt(prevTilt ...);
+  },
 
   //***************************************************************************
 
-  Interaction.init = function(container) {
-    var hasTouch = ('ontouchstart' in global);
-    addListener(container, hasTouch ? 'touchstart' : 'mousedown', onDragStart);
-    addListener(container, 'dblclick', onDoubleClick);
-    addListener(document, hasTouch ? 'touchmove' : 'mousemove', onDragMove);
-    addListener(document, hasTouch ? 'touchend' : 'mouseup', onDragEnd);
+  moveMap: function(e) {
+    var dx = e.clientX - this.prevX;
+    var dy = e.clientY - this.prevY;
+    var r = rotatePoint(dx, dy, this.map.rotation*Math.PI/180);
+    this.map.setCenter({ x: this.map.center.x - r.x, y: this.map.center.y - r.y });
+  },
 
-    if (hasTouch) {
-      addListener(container, 'gesturechange', onGestureChange);
-    } else {
-      addListener(container, 'mousewheel', onMouseWheel);
-      addListener(container, 'DOMMouseScroll', onMouseWheel);
-    }
+  rotateMap: function(e) {
+    this.prevRotation += (e.clientX - this.prevX)*(360/innerWidth);
+    this.prevTilt -= (e.clientY - this.prevY)*(360/innerHeight);
+    this.map.setRotation(this.prevRotation);
+    this.map.setTilt(this.prevTilt);
+  },
 
-    var resizeTimer;
-    addListener(global, 'resize', function() {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(function() {
-        Events.emit('resize');
-      }, 250);
-    });
-  };
-
-  Interaction.setDisabled = function(flag) {
-    Interaction.isDisabled = !!flag;
-  };
-
-  Interaction.destroy = function() {};
-
-}());
+  destroy: function() {}
+};
