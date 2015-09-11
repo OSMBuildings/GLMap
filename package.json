@@ -1,22 +1,19 @@
 {
-  "name": "osmbuildings-gl",
+  "name": "glmap",
   "private": false,
-  "description": "OSM Buildings GL",
-  "version": "0.1.0",
+  "description": "A basic map engine in WebGL",
+  "version": "0.2.0",
   "homepage": "http://osmbuildings.org",
   "author": "@kekscom",
   "contributors": [],
   "maintainers": [],
   "repository": {
-    "type": "git",
-    "url": "git@github.com:OSMBuildings/OSMBuildings.git"
+    "url": "git@github.com:OSMBuildings/GLMap.git"
   },
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "Color": "git+https://github.com/kekscom/Color.js",
     "grunt": "~0.4.4",
-    "grunt-webpack": "~1.0.8",
     "grunt-contrib-concat": "~0.4.0",
     "grunt-contrib-uglify": "~0.4.0",
     "grunt-contrib-jshint": "~0.11.0"

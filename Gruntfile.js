@@ -9,22 +9,11 @@ module.exports = function(grunt) {
     concat: {
       options: {
         separator: '\n',
-        banner: "var GLMap = (function(global) {",
-        footer: "\
-  return GLMap;\
-}(this));\
-\
-if (typeof define === 'function') {\
-  define([], GLMap);\
-} else if (typeof exports === 'object') {\
-  module.exports = GLMap;\
-} else {\
-  global.GLMap = GLMap;\
-}\
-"
+        banner: 'var <%=product%> = (function(window) {\n\n',
+        footer: '\nreturn <%=product%>; }(this));'
       },
       dist: {
-        src: [grunt.file.readJSON('config.json').lib, grunt.file.readJSON('config.json').src],
+        src: grunt.file.readJSON('config.json').src,
         dest:  'dist/<%=product%>.debug.js'
       }
     },
@@ -37,12 +26,18 @@ if (typeof define === 'function') {\
       }
     },
 
+    shaders: {
+      dist: {
+        src: 'src/shaders',
+        dest: 'src/shaders.js'
+      }
+    },
+
     jshint: {
       options: {
          globals: {
            Map: true
-         },
-         multistr: true
+         }
        },
       all: grunt.file.readJSON('config.json').src
     }
@@ -52,8 +47,42 @@ if (typeof define === 'function') {\
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-jshint');
 
+  grunt.registerMultiTask('shaders', 'Build shaders', function() {
+    grunt.log.writeln('\033[1;36m'+ grunt.template.date(new Date(), 'yyyy-mm-dd HH:MM:ss') +'\033[0m');
+
+    var fs = require('fs');
+    var dest = this.files[0].dest;
+
+    var baseURL = this.files[0].src;
+
+    var config = grunt.file.readJSON('config.json').shaders;
+    var shader, type;
+    var i, types = ['vertex', 'fragment'];
+    var src, SHADERS = {};
+
+    for (var name in config) {
+      shader = config[name];
+
+      SHADERS[name] = {
+        src: {},
+        attributes: shader.attributes,
+        uniforms: shader.uniforms
+      };
+
+      for (i = 0; i < types.length; i++) {
+        type = types[i];
+        var src = fs.readFileSync(baseURL +'/'+ name +'.'+ type +'.glsl', 'ascii');
+        SHADERS[name].src[type] = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
+      }
+    }
+
+    fs.writeFileSync(dest, 'var SHADERS = '+ JSON.stringify(SHADERS) +';\n');
+  });
+
   grunt.registerTask('default', 'Development build', function() {
     grunt.log.writeln('\033[1;36m'+ grunt.template.date(new Date(), 'yyyy-mm-dd HH:MM:ss') +'\033[0m');
+
+    grunt.task.run('shaders');
     grunt.task.run('concat');
     grunt.task.run('uglify');
   });

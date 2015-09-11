@@ -1,21 +1,20 @@
 {
-  "lib": [
-    "node_modules/color/dist/Color.debug.js",
-    "lib/GLX.debug.js"
-  ],
+  "shaders": {
+    "tileplane": {
+      "attributes": ["aPosition", "aTexCoord"],
+      "uniforms": ["uMatrix", "uTileImage"]
+    }
+  },
 
   "src": [
-    "src/index.js",
-    "src/Events.js",
-    "src/Interaction.js",
-    "src/Activity.js",
-    "src/Map.js",
-    "src/Layers.js",
-    "src/Renderer.js",
+    "src/GLMap.js",
     "src/State.js",
-    "src/TileLayer.js",
-    "src/MapTile.js",
     "src/variables.js",
-    "src/util.js"
+    "src/util.js",
+    "src/shaders.js",
+    "src/Grid.js",
+    "src/Tile.js",
+    "src/Matrix.js",
+    "src/Shader.js"
   ]
 }
