@@ -18,8 +18,11 @@ var Interaction = function(map, container) {
 
   var resizeDebounce;
   addListener(global, 'resize', function() {
-    clearTimeout(resizeDebounce);
+    if (resizeDebounce) {
+      return;
+    }
     resizeDebounce = setTimeout(function() {
+      resizeDebounce = null;
       map.emit('resize');
     }, 250);
   });

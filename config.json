@@ -4,6 +4,7 @@
   "src": [
     "src/index.js",
     "src/Interaction.js",
+    "src/Layers.js",
     "src/util.js"
   ]
 }

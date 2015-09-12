@@ -28,11 +28,21 @@ var GLMap = function(container, options) {
   if (options.disabled) {
     this.setDisabled(true);
   }
+
+  this.attribution = options.attribution ? [options.attribution] : [];
+  this.attributionDiv = document.createElement('DIV');
+  this.attributionDiv.className = 'glmap-attribution';
+  container.appendChild(attribution);
+  this.updateAttribution();
 };
 
 GLMap.TILE_SIZE = 256;
 
 GLMap.prototype = {
+
+  updateAttribution: function() {
+    this.attributionDiv.innerHTML = Layers.getAttribution(this.attribution).join(' &middot; ');
+  },
 
   restoreState: function(options) {
     var
@@ -76,9 +86,12 @@ GLMap.prototype = {
       return;
     }
 
-    var stateDebounce;
-    clearTimeout(stateDebounce);
-    stateDebounce = setTimeout(function() {
+    if (this.stateDebounce) {
+      return;
+    }
+
+    this.stateDebounce = setTimeout(function() {
+      this.stateDebounce = mull;
       var params = [];
       params.push('lat=' + this.position.latitude.toFixed(5));
       params.push('lon=' + this.position.longitude.toFixed(5));
@@ -86,7 +99,7 @@ GLMap.prototype = {
       params.push('tilt=' + this.tilt.toFixed(1));
       params.push('rotation=' + this.rotation.toFixed(1));
       history.replaceState({}, '', '?'+ params.join('&'));
-    }.bind(this), 2000);
+    }.bind(this), 1000);
   },
 
   setCenter: function(center) {
@@ -97,27 +110,32 @@ GLMap.prototype = {
     }
   },
 
-  emitDebounce: null,
   emit: function(type, payload) {
     if (!this.listeners[type]) {
       return;
     }
-    clearTimeout(this.emitDebounce);
+
     var listeners = this.listeners[type];
-    this.emitDebounce = setTimeout(function() {
-      for (var i = 0, il = listeners.length; i < il; i++) {
-        listeners[i](payload);
+
+    if (listeners.timer) {
+      return;
+    }
+
+    listeners.timer = setTimeout(function() {
+      for (var i = 0, il = listeners.fn.length; i < il; i++) {
+        listeners.fn[i](payload);
       }
-    }, 1);
+      listeners.timer = null;
+    }.bind(this), 17);
   },
 
   //***************************************************************************
 
   on: function(type, fn) {
     if (!this.listeners[type]) {
-      this.listeners[type] = [];
+      this.listeners[type] = { fn:[] };
     }
-    this.listeners[type].push(fn);
+    this.listeners[type].fn.push(fn);
   },
 
   off: function(type, fn) {},
@@ -215,19 +233,14 @@ GLMap.prototype = {
   },
 
   addLayer: function(layer) {
-//  Layers.add(layer);
-//  this.attribution.innerHTML = Layers.getAttributions([this.attributionPrefix]).join(' &middot; ');
+    Layers.add(layer);
+    this.updateAttribution();
     return this;
   },
 
   removeLayer: function(layer) {
-//    for (var i = 0; i < this._layers.length; i++) {
-//      if (this._layers[i] === layer) {
-//        this._layers[i].splice(i, 1);
-//        return;
-//      }
-//    }
-//  this.attribution.innerHTML = Layers.getAttributions([this.attributionPrefix]).join(' &middot; ');
+    Layers.remove(layer);
+    this.updateAttribution();
   },
 
   destroy: function() {
