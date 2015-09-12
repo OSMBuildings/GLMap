@@ -34,7 +34,7 @@ var GLMap = function(container, options) {
   this.attribution = options.attribution ? [options.attribution] : [];
   this.attributionDiv = document.createElement('DIV');
   this.attributionDiv.className = 'glmap-attribution';
-  container.appendChild(attribution);
+  this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
 };
 

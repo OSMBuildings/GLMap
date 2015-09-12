@@ -32,7 +32,7 @@ var GLMap = function(container, options) {
   this.attribution = options.attribution ? [options.attribution] : [];
   this.attributionDiv = document.createElement('DIV');
   this.attributionDiv.className = 'glmap-attribution';
-  container.appendChild(attribution);
+  this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
 };
 
@@ -91,7 +91,7 @@ GLMap.prototype = {
     }
 
     this.stateDebounce = setTimeout(function() {
-      this.stateDebounce = mull;
+      this.stateDebounce = null;
       var params = [];
       params.push('lat=' + this.position.latitude.toFixed(5));
       params.push('lon=' + this.position.longitude.toFixed(5));
