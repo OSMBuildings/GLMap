@@ -1,6 +1,11 @@
 
 var GLMap = function(container, options) {
-  this.container = container;
+  this.container = typeof container === 'string' ? document.getElementById(container) : container;
+
+  this.container.classList.add('glmap-container');
+  this.width = this.container.offsetWidth;
+  this.height = this.container.offsetHeight;
+  this.context = new glx.View(this.container, this.width, this.height);
 
   this.minZoom = parseFloat(options.minZoom) || 10;
   this.maxZoom = parseFloat(options.maxZoom) || 20;
@@ -24,7 +29,7 @@ var GLMap = function(container, options) {
     }.bind(this));
   }
 
-  this.interaction = new Interaction(this, container);
+  this.interaction = new Interaction(this, this.container);
   if (options.disabled) {
     this.setDisabled(true);
   }
@@ -34,6 +39,9 @@ var GLMap = function(container, options) {
   this.attributionDiv.className = 'glmap-attribution';
   this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
+
+  Layers.init(this);
+  Layers.render();
 };
 
 GLMap.TILE_SIZE = 256;
@@ -105,7 +113,7 @@ GLMap.prototype = {
   setCenter: function(center) {
     if (this.center.x !== center.x || this.center.y !== center.y) {
       this.center = center;
-      this.position = unproject(center.x, center.y, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
+      this.position = this.unproject(center.x, center.y, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
       this.emit('change');
     }
   },
@@ -131,21 +139,27 @@ GLMap.prototype = {
 
   //***************************************************************************
 
+  getContext: function() {
+    return this.context;
+  },
+
   on: function(type, fn) {
     if (!this.listeners[type]) {
       this.listeners[type] = { fn:[] };
     }
     this.listeners[type].fn.push(fn);
+    return this;
   },
 
   off: function(type, fn) {},
 
   setDisabled: function(flag) {
-    this.interaction.setDisabled(flag);
+    this.interaction.disabled = !!flag;
+    return this;
   },
 
   isDisabled: function() {
-    return this.interaction.isDisabled();
+    return !!this.interaction.disabled;
   },
 
   project: function(latitude, longitude, worldSize) {
@@ -164,19 +178,21 @@ GLMap.prototype = {
     };
   },
 
+  transform: function(latitude, longitude, elevation) {
+    var pos = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, Map.zoom));
+    return transform(pos.x-this.center.x, pos.y-this.center.y, elevation);
+  },
+
   getBounds: function() {
     var
+      W2 = this.width/2, H2 = this.height/2,
+      angle = this.rotation*Math.PI/180,
+      x = Math.cos(angle)*W2 - Math.sin(angle)*H2,
+      y = Math.sin(angle)*W2 + Math.cos(angle)*H2,
       center = this.center,
-      halfWidth  = this.container.offsetWidth/2,
-      halfHeight = this.container.offsetHeight/2,
-      maxY = center.y + halfHeight,
-      minX = center.x - halfWidth,
-      minY = center.y - halfHeight,
-      maxX = center.x + halfWidth,
       worldSize = GLMap.TILE_SIZE*Math.pow(2, this.zoom),
-      nw = unproject(minX, minY, worldSize),
-      se = unproject(maxX, maxY, worldSize);
-
+      nw = this.unproject(center.x - x, center.y - y, worldSize),
+      se = this.unproject(center.x + x, center.y + y, worldSize);
     return {
       n: nw.latitude,
       w: nw.longitude,
@@ -206,14 +222,37 @@ GLMap.prototype = {
       }
       this.emit('change');
     }
+    return this;
+  },
+
+  getZoom: function() {
+    return this.zoom;
   },
 
   setPosition: function(pos) {
     var
       latitude  = clamp(parseFloat(pos.latitude), -90, 90),
       longitude = clamp(parseFloat(pos.longitude), -180, 180),
-      center = project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
+      center = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
     this.setCenter(center);
+    return this;
+  },
+
+  getPosition: function() {
+    return this.position;
+  },
+
+  setSize: function(size) {
+    if (size.width !== this.width || size.height !== this.height) {
+      this.context.canvas.width = this.width = size.width;
+      this.context.canvas.height = this.height = size.height;
+      this.emit('resize');
+    }
+    return this;
+  },
+
+  getSize: function() {
+    return { width: this.width, height: this.height };
   },
 
   setRotation: function(rotation) {
@@ -222,6 +261,11 @@ GLMap.prototype = {
       this.rotation = rotation;
       this.emit('change');
     }
+    return this;
+  },
+
+  getRotation: function() {
+    return this.rotation;
   },
 
   setTilt: function(tilt) {
@@ -230,6 +274,11 @@ GLMap.prototype = {
       this.tilt = tilt;
       this.emit('change');
     }
+    return this;
+  },
+
+  getTilt: function() {
+    return this.tilt;
   },
 
   addLayer: function(layer) {
@@ -248,3 +297,13 @@ GLMap.prototype = {
     this.interaction.destroy();
   }
 };
+
+//*****************************************************************************
+
+if (typeof global.define === 'function') {
+  global.define([], GLMap);
+} else if (typeof global.exports === 'object') {
+  global.module.exports = GLMap;
+} else {
+  global.GLMap = GLMap;
+}

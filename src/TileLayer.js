@@ -1,24 +1,26 @@
 
-// this._zoom
-
 GLMap.TileLayer = function(source, options) {
-  this._source = source;
-  this._tileSize = 256;
+  this.source = source;
+//this.tileSize = 256;
 
   options = options || {};
 
   this.attribution = options.attribution;
 
-  this._minZoom = parseFloat(options.minZoom) || 0;
-  this._maxZoom = parseFloat(options.maxZoom) || 18;
+  this.minZoom = parseFloat(options.minZoom) || 0;
+  this.maxZoom = parseFloat(options.maxZoom) || 18;
 
-  if (this._maxZoom < this._minZoom) {
-    this._maxZoom = this._minZoom;
+  if (this.maxZoom < this.minZoom) {
+    this.maxZoom = this.minZoom;
   }
 
-  this._buffer = options.buffer || 1;
+  this.buffer = options.buffer || 1;
 
-  this._shader = new glx.Shader({
+/* jshint
+multistr: true
+*/
+
+  this.shader = new glx.Shader({
     vertexShader: "\
 precision mediump float;\
 attribute vec4 aPosition;\
@@ -29,6 +31,7 @@ void main() {\
   gl_Position = uMatrix * aPosition;\
   vTexCoord = aTexCoord;\
 }",
+
     fragmentShader: "\
 precision mediump float;\
 uniform sampler2D uTileImage;\
@@ -36,175 +39,194 @@ varying vec2 vTexCoord;\
 void main() {\
   gl_FragColor = texture2D(uTileImage, vec2(vTexCoord.x, -vTexCoord.y));\
 }",
+
     attributes: ['aPosition', 'aTexCoord'],
     uniforms: ['uMatrix', 'uTileImage']
+//    uniforms: ["uMMatrix", "uMatrix", "uTileImage", "uFogRadius", "uFogColor"]
   });
 
-  this._tiles = {};
+/* jshint
+multistr: false
+*/
+
+  this.tiles = {};
 };
 
 GLMap.TileLayer.prototype = {
 
   addTo: function(map) {
     this.map = map;
-    map.addLayer(this);
+    this.map.addLayer(this);
 
-    map.on('change', function() {
-      this.update(500);
+    this.map.on('change', function() {
+      this.update(2000);
     }.bind(this));
 
-    map.on('resize', this.update.bind(this));
+    this.map.on('resize', this.update.bind(this));
 
     this.update();
   },
 
   remove: function() {
+    clearTimeout(this.isWaiting);
     this.map.removeLayer(this);
-    clearTimeout(this._isWaiting);
     this.map = null;
   },
 
+  // strategy: start loading after {delay}ms, skip any attempts until then
+  // effectively loads in intervals during movement
   update: function(delay) {
-    if (!this.map) {
-      return;
-    }
-
-    if (this._zoom < this._minZoom || this._zoom > this._maxZoom) {
+    if (this.map.zoom < this.minZoom || this.map.zoom > this.maxZoom) {
       return;
     }
 
     if (!delay) {
-      this._loadTiles();
+      this.loadTiles();
       return;
     }
 
-    if (!this._isWaiting) {
-      this._isWaiting = setTimeout(function() {
-        this._isWaiting = null;
-        this._loadTiles();
-      }.bind(this), delay);
+    if (this.isWaiting) {
+      return;
     }
+
+    this.isWaiting = setTimeout(function() {
+      this.isWaiting = null;
+      this.loadTiles();
+    }.bind(this), delay);
   },
 
   getURL: function(x, y, z) {
     var param = { s:'abcd'[(x+y) % 4], x:x, y:y, z:z };
-    return this._source.replace(/\{(\w+)\}/g, function(tag, key) {
+    return this.source.replace(/\{(\w+)\}/g, function(tag, key) {
       return param[key] || tag;
     });
   },
 
-  _distance2: function(a, b) {
+  updateBounds: function() {
     var
-      dx = a[0]-b[0],
-      dy = a[1]-b[1];
-    return dx*dx + dy*dy;
+      tileZoom = Math.round(this.map.zoom),
+      radius = 1500, // SkyDome.radius,
+      ratio = Math.pow(2, tileZoom-this.map.zoom)/GLMap.TILE_SIZE,
+      mapCenter = this.map.center;
+
+    this.minX = ((mapCenter.x-radius)*ratio <<0);
+    this.minY = ((mapCenter.y-radius)*ratio <<0);
+    this.maxX = Math.ceil((mapCenter.x+radius)*ratio);
+    this.maxY = Math.ceil((mapCenter.y+radius)*ratio);
   },
 
-  _updateBounds: function() {
-    var
-      map = this.map,
-      mapBounds = map.getBounds(),
-      mapZoom = Math.round(map.getZoom()),
-      ratio = Math.pow(2, this._zoom-mapZoom)/this._tileSize;
+  loadTiles: function() {
+    this.updateBounds();
 
-    this._minX = (mapBounds.minX*ratio <<0) -1;
-    this._minY = (mapBounds.minY*ratio <<0) -1;
-    this._maxX = Math.ceil(mapBounds.maxX*ratio) +1;
-    this._maxY = Math.ceil(mapBounds.maxY*ratio) +1;
-  },
-
-  _loadTiles: function() {
     var
       tileX, tileY,
+      tileZoom = Math.round(this.map.zoom),
       key,
       queue = [], queueLength,
       tileAnchor = [
-        this._minX + (this._maxX-this._minX)/2 - 0.5, // 0.5 is for translating top left corner
-        this._maxY + (this._maxY-this._minY)/2 - 0.5  // 0.5 is for translating top left corner
+        this.map.center.x/GLMap.TILE_SIZE <<0,
+        this.map.center.y/GLMap.TILE_SIZE <<0
       ];
 
-    this._updateBounds();
-
-    for (tileY = this._minY; tileY < this._maxY; tileY++) {
-      for (tileX = this._minX; tileX < this._maxX; tileX++) {
-        key = [tileX, tileY, this._zoom].join(',');
-        if (this._tiles[key]) {
+    for (tileY = this.minY; tileY < this.maxY; tileY++) {
+      for (tileX = this.minX; tileX < this.maxX; tileX++) {
+        key = [tileX, tileY, tileZoom].join(',');
+        if (this.tiles[key]) {
           continue;
         }
-        this._tiles[key] = new MapTile(tileX, tileY, this._zoom);
+        this.tiles[key] = new GLMap.Tile(tileX, tileY, tileZoom);
         // TODO: rotate anchor point
-        queue.push({ tile:this._tiles[key], dist:this._distance2([tileX, tileY], tileAnchor) });
+        queue.push({ tile:this.tiles[key], dist:distance2([tileX, tileY], tileAnchor) });
       }
     }
 
     if (!(queueLength = queue.length)) {
-      queue.sort(function(a, b) {
-        return a.dist-b.dist;
-      });
-
-      var tile;
-      for (var i = 0; i < queueLength; i++) {
-        tile = queue[i].tile;
-        tile.load(this.getURL(tile.tileX, tile.tileY, tile.zoom));
-      }
+      return;
     }
 
-    this._purge();
+    queue.sort(function(a, b) {
+      return a.dist-b.dist;
+    });
+
+    var tile;
+    for (var i = 0; i < queueLength; i++) {
+      tile = queue[i].tile;
+      tile.load(this.getURL(tile.x, tile.y, tile.zoom));
+    }
+
+    this.purge();
   },
 
-  _purge: function() {
-    for (var key in this._tiles) {
-      if (!this._isVisible(this._tiles[key], this._buffer)) {
-        this._tiles[key].destroy();
-        delete this._tiles[key];
+  purge: function() {
+    for (var key in this.tiles) {
+      if (!this.isVisible(this.tiles[key], this.buffer)) {
+        this.tiles[key].destroy();
+        delete this.tiles[key];
       }
     }
   },
 
-  _isVisible: function(tile, buffer) {
+  isVisible: function(tile, buffer) {
      buffer = buffer || 0;
      var
-       tileX = tile.tileX,
-       tileY = tile.tileY;
+       tileX = tile.x,
+       tileY = tile.y,
+       tileZoom = Math.round(this.map.zoom);
      // TODO: factor in tile origin
-     return (tile.zoom === zoom && (tileX >= this._minX-buffer && tileX <= this._maxX+buffer && tileY >= this._minY-buffer && tileY <= this._maxY+buffer));
+     return (tile.zoom === tileZoom && (tileX >= this.minX-buffer && tileX <= this.maxX+buffer && tileY >= this.minY-buffer && tileY <= this.maxY+buffer));
   },
 
   render: function(vpMatrix) {
-    var tile, mMatrix;
+    var
+      gl = this.map.getContext(),
+      tile, tileMatrix,
+      tileZoom = Math.round(this.map.zoom),
+      ratio = 1 / Math.pow(2, tileZoom - this.map.zoom),
+      mapCenter = this.map.center;
 
-    this._shader.enable();
+    this.shader.enable();
 
-    for (var key in this._tiles) {
-      tile = this._tiles[key];
+//  gl.uniform1f(this.shader.uniforms.uFogRadius, SkyDome.radius);
+//  gl.uniform3fv(this.shader.uniforms.uFogColor, [Renderer.fogColor.r, Renderer.fogColor.g, Renderer.fogColor.b]);
 
-      if (!(mMatrix = tile.getMatrix())) {
+    for (var key in this.tiles) {
+      tile = this.tiles[key];
+
+      if (!tile.isLoaded) {
         continue;
       }
 
-      GL.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
+      tileMatrix = new glx.Matrix();
+      tileMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
+      tileMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
+
+      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(tileMatrix, vpMatrix));
+
+      //gl.uniformMatrix4fv(shader.uniforms.uMMatrix, false, mMatrix.data);
+      //
+      //mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
+      //gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, mvp);
 
       tile.vertexBuffer.enable();
-      GL.vertexAttribPointer(shader.attributes.aPosition, tile.vertexBuffer.itemSize, GL.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(this.shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texCoordBuffer.enable();
-      GL.vertexAttribPointer(shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, GL.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(this.shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texture.enable(0);
-      GL.uniform1i(shader.uniforms.uTileImage, 0);
+      gl.uniform1i(this.shader.uniforms.uTileImage, 0);
 
-      GL.drawArrays(GL.TRIANGLE_STRIP, 0, tile.vertexBuffer.numItems);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, tile.vertexBuffer.numItems);
     }
 
-    this._shader.disable();
+    this.shader.disable();
   },
 
   destroy: function() {
-    this.map = null;
-    clearTimeout(this._isWaiting);
-    for (var key in this._tiles) {
-      this._tiles[key].destroy();
+    for (var key in this.tiles) {
+      this.tiles[key].destroy();
     }
-    this._tiles = null;
+    this.tiles = null;
+    this.remove();
   }
 };

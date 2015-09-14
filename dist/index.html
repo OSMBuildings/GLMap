@@ -57,8 +57,10 @@
       cursor: pointer;
     }
   </style>
+  <link rel="stylesheet" type="text/css" href="GLMap.css">
   <script>var global = window;</script>
-  <script src="GLMap.debug.js"></script>
+  <script src="../loader.js"></script>
+  <!--script src="GLMap.debug.js"></script-->
 </head>
 
 <body>
@@ -82,20 +84,22 @@
 <script>
   var map = new GLMap('map', {
     position: { latitude:52.52000, longitude:13.41000 },
-    zoom: 16,
+    zoom: 15,
     rotation: 0, // optional
     tilt: 0, // optional
+    hash: true,
     // disabled: true, // disables user input - optional
     backgroundColor: '#bfb8b0'
   });
 
-//  new GLMap.TileLayer(
-//    'http://{s}.tiles.mapbox.com/v3/osmbuildings.kbpalbpk/{z}/{x}/{y}.png',
-//    {
-//      maxZoom: 22,
-//      attribution: '© <a href="http://osmbuildings.org/copyright/">OpenStreetMap</a> contributors, Map tiles © <a href="http://mapbox.com">MapBox</a>'
-//    }
-//  ).addTo(map);
+  new GLMap.TileLayer(
+    'http://{s}.tiles.mapbox.com/v3/osmbuildings.kbpalbpk/{z}/{x}/{y}.png',
+    {
+      minZoom: 12,
+      maxZoom: 22,
+      attribution: '© Data <a href="http://osmbuildings.org/copyright/">OpenStreetMap</a>'
+    }
+  ).addTo(map);
 
   //***************************************************************************
 

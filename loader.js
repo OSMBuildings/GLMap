@@ -1,5 +1,5 @@
 
-var baseURL = baseURL || './';
+var baseURL = '../';
 
 function loadFile(url) {
   var xhr = new XMLHttpRequest();
@@ -18,24 +18,18 @@ function loadFile(url) {
 }
 
 function loadShaders(config) {
-  var shader, type;
-  var i, types = ['vertex', 'fragment'];
-  var src, SHADERS = {};
+  var src, name, SHADERS = {};
 
-  for (var name in config) {
-    shader = config[name];
+  for (var i = 0; i < config.length; i++) {
+    name = config[i];
 
-    SHADERS[name] = {
-      src: {},
-      attributes: shader.attributes,
-      uniforms: shader.uniforms
-    };
+    SHADERS[name] = {};
 
-    for (i = 0; i < types.length; i++) {
-      type = types[i];
-      src = loadFile(baseURL +'src/shaders/'+ name +'.'+ type +'.glsl');
-      SHADERS[name].src[type] = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
-    }
+    src = loadFile(baseURL +'src/shaders/'+ name +'.vertex.glsl');
+    SHADERS[name].vertex = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
+
+    src = loadFile(baseURL +'src/shaders/'+ name +'.fragment.glsl');
+    SHADERS[name].fragment = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
   }
 
   console.log('SHADERS', SHADERS);
@@ -45,6 +39,12 @@ function loadShaders(config) {
 var config = JSON.parse(loadFile(baseURL +'config.json'));
 
 var file, str, js = '';
+var global = this;
+
+for (var i = 0; i < config.lib.length; i++) {
+  js += loadFile(baseURL + config.lib[i]) +'\n\n';
+}
+
 for (var i = 0; i < config.src.length; i++) {
   file = config.src[i];
 

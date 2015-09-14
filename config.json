@@ -1,10 +1,16 @@
 {
-  "shaders": {},
+  "shaders": [],
+
+  "lib": [
+    "lib/glx.debug.js"
+  ],
 
   "src": [
     "src/index.js",
     "src/Interaction.js",
     "src/Layers.js",
+    "src/TileLayer.js",
+    "src/Tile.js",
     "src/util.js"
   ]
 }

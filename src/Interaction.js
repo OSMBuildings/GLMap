@@ -29,13 +29,6 @@ var Interaction = function(map, container) {
 };
 
 Interaction.prototype = {
-  setDisabled: function(flag) {
-    this.disabled = !!flag;
-  },
-
-  isDisabled: function() {
-    return !!this.disabled;
-  },
 
   prevX: 0,
   prevY: 0,
