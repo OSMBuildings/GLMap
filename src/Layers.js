@@ -51,13 +51,13 @@ var Layers = {
 
     this.loop = setInterval(function() {
       requestAnimationFrame(function() {
-        this.map.transform = new glx.Matrix()
+        this.map.viewMatrix = new glx.Matrix()
           .rotateZ(this.map.rotation)
           .rotateX(this.map.tilt);
 
 // console.log('CONTEXT LOST?', gl.isContextLost());
 
-          var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.map.transform, this.perspective));
+          var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.map.viewMatrix, this.perspective));
 
 //        gl.clearColor(this.fogColor.r, this.fogColor.g, this.fogColor.b, 1);
           gl.clearColor(0.5, 0.5, 0.5, 1);

@@ -85,11 +85,10 @@
   var map = new GLMap('map', {
     position: { latitude:52.52000, longitude:13.41000 },
     zoom: 15,
-    rotation: 0, // optional
-    tilt: 0, // optional
-    hash: true,
+    rotation: 0,
+    tilt: 0,
     // disabled: true, // disables user input - optional
-    backgroundColor: '#bfb8b0'
+    state: true
   });
 
   new GLMap.TileLayer(
@@ -97,6 +96,7 @@
     {
       minZoom: 12,
       maxZoom: 22,
+      // backgroundColor: 'rgb(232, 224, 216)', // coming soon
       attribution: '© Data <a href="http://osmbuildings.org/copyright/">OpenStreetMap</a>'
     }
   ).addTo(map);

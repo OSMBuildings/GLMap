@@ -5,7 +5,7 @@ var GLMap = function(container, options) {
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
   this.height = this.container.offsetHeight;
-  this.context = new glx.View(this.container, this.width, this.height);
+  this.context = glx.View(this.container, this.width, this.height);
 
   this.minZoom = parseFloat(options.minZoom) || 10;
   this.maxZoom = parseFloat(options.maxZoom) || 20;
@@ -16,7 +16,7 @@ var GLMap = function(container, options) {
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
-  this.transform = new glx.Matrix(); // there are early actions that rely on an existing Map transform
+  this.viewMatrix = new glx.Matrix(); // there are early actions that rely on an existing Map transform
 
   this.listeners = {};
 
@@ -179,8 +179,22 @@ GLMap.prototype = {
   },
 
   transform: function(latitude, longitude, elevation) {
-    var pos = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, Map.zoom));
-    return transform(pos.x-this.center.x, pos.y-this.center.y, elevation);
+    var
+      pos = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom)),
+      x = pos.x-this.center.x,
+      y = pos.y-this.center.y;
+
+    var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.viewMatrix, Renderer.perspective));
+    var scale = 1/Math.pow(2, 16 - this.zoom);
+    var mMatrix = new glx.Matrix()
+      .translate(0, 0, elevation)
+      .scale(scale, scale, scale*HEIGHT_SCALE)
+      .translate(x, y, 0);
+
+    var mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
+
+    var t = glx.Matrix.transform(mvp);
+    return { x: t.x*this.width, y: this.height - t.y*this.height, z: t.z }; // takes current cam pos into account.
   },
 
   getBounds: function() {
@@ -279,6 +293,10 @@ GLMap.prototype = {
 
   getTilt: function() {
     return this.tilt;
+  },
+
+  getPerspective: function() {
+    return Layers.perspective;
   },
 
   addLayer: function(layer) {

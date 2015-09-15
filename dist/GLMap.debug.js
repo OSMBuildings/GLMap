@@ -813,7 +813,7 @@ var GLMap = function(container, options) {
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
   this.height = this.container.offsetHeight;
-  this.context = new glx.View(this.container, this.width, this.height);
+  this.context = glx.View(this.container, this.width, this.height);
 
   this.minZoom = parseFloat(options.minZoom) || 10;
   this.maxZoom = parseFloat(options.maxZoom) || 20;
@@ -824,7 +824,7 @@ var GLMap = function(container, options) {
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
-  this.transform = new glx.Matrix(); // there are early actions that rely on an existing Map transform
+  this.viewMatrix = new glx.Matrix(); // there are early actions that rely on an existing Map transform
 
   this.listeners = {};
 
@@ -847,6 +847,9 @@ var GLMap = function(container, options) {
   this.attributionDiv.className = 'glmap-attribution';
   this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
+
+  Layers.init(this);
+  Layers.render();
 };
 
 GLMap.TILE_SIZE = 256;
@@ -984,8 +987,22 @@ GLMap.prototype = {
   },
 
   transform: function(latitude, longitude, elevation) {
-    var pos = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, Map.zoom));
-    return transform(pos.x-this.center.x, pos.y-this.center.y, elevation);
+    var
+      pos = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom)),
+      x = pos.x-this.center.x,
+      y = pos.y-this.center.y;
+
+    var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.viewMatrix, Renderer.perspective));
+    var scale = 1/Math.pow(2, 16 - this.zoom);
+    var mMatrix = new glx.Matrix()
+      .translate(0, 0, elevation)
+      .scale(scale, scale, scale*HEIGHT_SCALE)
+      .translate(x, y, 0);
+
+    var mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
+
+    var t = glx.Matrix.transform(mvp);
+    return { x: t.x*this.width, y: this.height - t.y*this.height, z: t.z }; // takes current cam pos into account.
   },
 
   getBounds: function() {
@@ -1030,6 +1047,10 @@ GLMap.prototype = {
     return this;
   },
 
+  getZoom: function() {
+    return this.zoom;
+  },
+
   setPosition: function(pos) {
     var
       latitude  = clamp(parseFloat(pos.latitude), -90, 90),
@@ -1047,7 +1068,7 @@ GLMap.prototype = {
     if (size.width !== this.width || size.height !== this.height) {
       this.context.canvas.width = this.width = size.width;
       this.context.canvas.height = this.height = size.height;
-      Events.emit('resize');
+      this.emit('resize');
     }
     return this;
   },
@@ -1080,6 +1101,10 @@ GLMap.prototype = {
 
   getTilt: function() {
     return this.tilt;
+  },
+
+  getPerspective: function() {
+    return Layers.perspective;
   },
 
   addLayer: function(layer) {
@@ -1327,6 +1352,10 @@ Interaction.prototype = {
 
 var Layers = {
 
+  init: function(map) {
+    this.map = map;
+  },
+
   items: [],
 
   add: function(layer) {
@@ -1352,13 +1381,65 @@ var Layers = {
     return attribution;
   },
 
-  //render: function(vpMatrix) {
-  //  for (var i = 0; i < this.items.length; i++) {
-  //    this.items[i].render(vpMatrix);
-  //  }
-  //},
+  render: function(options) {
+//  this.fogColor = options.fogColor ? Color.parse(options.fogColor).toRGBA(true) : FOG_COLOR;
+    var gl = this.map.context;
+
+    this.resize();
+    this.map.on('resize', this.resize.bind(this));
+
+    gl.cullFace(gl.BACK);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+
+    this.map.on('contextlost', function() {
+      //  this.stop();
+    }.bind(this));
+
+    this.map.on('contextrestored', function() {
+      //  this.start();
+    }.bind(this));
+
+    this.loop = setInterval(function() {
+      requestAnimationFrame(function() {
+        this.map.viewMatrix = new glx.Matrix()
+          .rotateZ(this.map.rotation)
+          .rotateX(this.map.tilt);
+
+// console.log('CONTEXT LOST?', gl.isContextLost());
+
+          var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.map.viewMatrix, this.perspective));
+
+//        gl.clearColor(this.fogColor.r, this.fogColor.g, this.fogColor.b, 1);
+          gl.clearColor(0.5, 0.5, 0.5, 1);
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        for (var i = 0; i < this.items.length; i++) {
+          this.items[i].render(vpMatrix);
+        }
+      }.bind(this));
+    }.bind(this), 17);
+  },
+
+  stop: function() {
+    clearInterval(this.loop);
+  },
+
+  resize: function() {
+    var refHeight = 1024;
+    var refVFOV = 45;
+
+    this.perspective = new glx.Matrix()
+      .translate(0, -this.map.height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
+      .scale(1, -1, 1) // flip Y
+      .multiply(new glx.Matrix.Perspective(refVFOV * this.map.height / refHeight, this.map.width/this.map.height, 0.1, 5000))
+      .translate(0, -1, 0); // camera y offset
+
+    this.map.context.viewport(0, 0, this.map.width, this.map.height);
+  },
 
   destroy: function() {
+    this.stop();
     for (var i = 0; i < this.items.length; i++) {
       if (this.items[i].destroy) {
         this.items[i].destroy();
@@ -1556,8 +1637,8 @@ GLMap.TileLayer.prototype = {
 
     this.shader.enable();
 
-//    gl.uniform1f(this.shader.uniforms.uFogRadius, SkyDome.radius);
-//    gl.uniform3fv(this.shader.uniforms.uFogColor, [Renderer.fogColor.r, Renderer.fogColor.g, Renderer.fogColor.b]);
+//  gl.uniform1f(this.shader.uniforms.uFogRadius, SkyDome.radius);
+//  gl.uniform3fv(this.shader.uniforms.uFogColor, [Renderer.fogColor.r, Renderer.fogColor.g, Renderer.fogColor.b]);
 
     for (var key in this.tiles) {
       tile = this.tiles[key];
@@ -1656,35 +1737,12 @@ GLMap.Tile.prototype = {
 };
 
 
-//function rad(deg) {
-//  return deg * PI / 180;
-//}
-
-//function deg(rad) {
-//  return rad / PI * 180;
-//}
-
 function distance2(a, b) {
   var
     dx = a[0]-b[0],
     dy = a[1]-b[1];
   return dx*dx + dy*dy;
 }
-
-//function normalize(value, min, max) {
-//  var range = max-min;
-//  return clamp((value-min)/range, 0, 1);
-//}
-
-//function unit(x, y, z) {
-//  var m = Math.sqrt(x*x + y*y + z*z);
-//
-//  if (m === 0) {
-//    m = 0.00001;
-//  }
-//
-//  return [x/m, y/m, z/m];
-//}
 
 //function pattern(str, param) {
 //  return str.replace(/\{(\w+)\}/g, function(tag, key) {
