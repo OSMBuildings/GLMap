@@ -184,7 +184,7 @@ GLMap.prototype = {
       x = pos.x-this.center.x,
       y = pos.y-this.center.y;
 
-    var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.viewMatrix, Renderer.perspective));
+    var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.viewMatrix, Layers.perspective));
     var scale = 1/Math.pow(2, 16 - this.zoom);
     var mMatrix = new glx.Matrix()
       .translate(0, 0, elevation)
