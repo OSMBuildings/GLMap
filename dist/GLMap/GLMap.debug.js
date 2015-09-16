@@ -1348,7 +1348,7 @@ var Interaction = function(map, container) {
     }
     resizeDebounce = setTimeout(function() {
       resizeDebounce = null;
-      map.emit('resize');
+      map.setSize({ width:container.offsetWidth, height:container.offsetHeight });
     }, 250);
   });
 };
