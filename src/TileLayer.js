@@ -1,7 +1,6 @@
 
 GLMap.TileLayer = function(source, options) {
   this.source = source;
-
   options = options || {};
 
   this.attribution = options.attribution;
@@ -29,13 +28,13 @@ GLMap.TileLayer.prototype = {
 
   addTo: function(map) {
     this.map = map;
-    this.map.addLayer(this);
+    map.addLayer(this);
 
-    this.map.on('change', function() {
+    map.on('change', function() {
       this.update(2000);
     }.bind(this));
 
-    this.map.on('resize', this.update.bind(this));
+    map.on('resize', this.update.bind(this));
 
     this.update();
   },
@@ -49,7 +48,9 @@ GLMap.TileLayer.prototype = {
   // strategy: start loading after {delay}ms, skip any attempts until then
   // effectively loads in intervals during movement
   update: function(delay) {
-    if (this.map.zoom < this.minZoom || this.map.zoom > this.maxZoom) {
+    var map = this.map;
+
+    if (map.zoom < this.minZoom || map.zoom > this.maxZoom) {
       return;
     }
 
@@ -77,10 +78,11 @@ GLMap.TileLayer.prototype = {
 
   updateBounds: function() {
     var
-      tileZoom = Math.round(this.map.zoom),
+      map = this.map,
+      tileZoom = Math.round(map.zoom),
       radius = 1500, // SkyDome.radius,
-      ratio = Math.pow(2, tileZoom-this.map.zoom)/GLMap.TILE_SIZE,
-      mapCenter = this.map.center;
+      ratio = Math.pow(2, tileZoom-map.zoom)/GLMap.TILE_SIZE,
+      mapCenter = map.center;
 
     this.minX = ((mapCenter.x-radius)*ratio <<0);
     this.minY = ((mapCenter.y-radius)*ratio <<0);
@@ -92,13 +94,14 @@ GLMap.TileLayer.prototype = {
     this.updateBounds();
 
     var
+      map = this.map,
       tileX, tileY,
-      tileZoom = Math.round(this.map.zoom),
+      tileZoom = Math.round(map.zoom),
       key,
       queue = [], queueLength,
       tileAnchor = [
-        this.map.center.x/GLMap.TILE_SIZE <<0,
-        this.map.center.y/GLMap.TILE_SIZE <<0
+        map.center.x/GLMap.TILE_SIZE <<0,
+        map.center.y/GLMap.TILE_SIZE <<0
       ];
 
     for (tileY = this.minY; tileY < this.maxY; tileY++) {
@@ -118,7 +121,7 @@ GLMap.TileLayer.prototype = {
     }
 
     queue.sort(function(a, b) {
-      return b.dist-a.dist;
+      return a.dist-b.dist;
     });
 
     var tile;
@@ -151,21 +154,24 @@ GLMap.TileLayer.prototype = {
 
   render: function(vpMatrix) {
     var
-      gl = this.map.getContext(),
+      map = this.map,
+      fogColor = map.fogColor,
+      gl = map.context,
+      shader = this.shader,
       tile, mMatrix,
-      tileZoom = Math.round(this.map.zoom),
-      ratio = 1 / Math.pow(2, tileZoom - this.map.zoom),
-      mapCenter = this.map.center;
+      tileZoom = Math.round(map.zoom),
+      ratio = 1 / Math.pow(2, tileZoom - map.zoom),
+      mapCenter = map.center;
 
-    this.shader.enable();
+    shader.enable();
 
-    gl.uniform1f(this.shader.uniforms.uFogRadius, this.map.fogRadius);
-    gl.uniform3fv(this.shader.uniforms.uFogColor, [this.map.fogColor.r, this.map.fogColor.g, this.map.fogColor.b]);
+    gl.uniform1f(shader.uniforms.uFogRadius, map.renderer.fogRadius);
+    gl.uniform3fv(shader.uniforms.uFogColor, [fogColor.r, fogColor.g, fogColor.b]);
 
     for (var key in this.tiles) {
       tile = this.tiles[key];
 
-      if (!tile.isLoaded) {
+      if (!tile.isReady) {
         continue;
       }
 
@@ -173,22 +179,22 @@ GLMap.TileLayer.prototype = {
       mMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
       mMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
 
-      gl.uniformMatrix4fv(this.shader.uniforms.uMMatrix, false, mMatrix.data);
-      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
+      gl.uniformMatrix4fv(shader.uniforms.uMMatrix, false, mMatrix.data);
+      gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
 
       tile.vertexBuffer.enable();
-      gl.vertexAttribPointer(this.shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texCoordBuffer.enable();
-      gl.vertexAttribPointer(this.shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texture.enable(0);
-      gl.uniform1i(this.shader.uniforms.uTileImage, 0);
+      gl.uniform1i(shader.uniforms.uTileImage, 0);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, tile.vertexBuffer.numItems);
     }
 
-    this.shader.disable();
+    shader.disable();
   },
 
   destroy: function() {

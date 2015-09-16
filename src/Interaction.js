@@ -208,5 +208,7 @@ Interaction.prototype = {
 //  this.map.setTilt(prevTilt ...);
   },
 
-  destroy: function() {}
+  destroy: function() {
+    this.disabled = true;
+  }
 };

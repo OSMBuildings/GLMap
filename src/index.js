@@ -1,8 +1,11 @@
 
 var document = global.document;
+var FOG_COLOR = '#f0f8ff';
+var FOG_RADIUS = 1500;
 
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
+  options = options || {};
 
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
@@ -18,7 +21,6 @@ var GLMap = function(container, options) {
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
-  this.viewMatrix = new glx.Matrix(); // there are early actions that rely on an existing Map transform
 
   this.listeners = {};
 
@@ -31,7 +33,12 @@ var GLMap = function(container, options) {
     }.bind(this));
   }
 
+  this.fogColor = Color.parse(options.fogColor || FOG_COLOR).toRGBA(true);
+
   this.interaction = new Interaction(this, this.container);
+  this.layers      = new Layers(this);
+  this.renderer    = new Renderer(this);
+
   if (options.disabled) {
     this.setDisabled(true);
   }
@@ -42,8 +49,7 @@ var GLMap = function(container, options) {
   this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
 
-  Layers.init(this);
-  Layers.render();
+  this.renderer.start();
 };
 
 GLMap.TILE_SIZE = 256;
@@ -51,7 +57,7 @@ GLMap.TILE_SIZE = 256;
 GLMap.prototype = {
 
   updateAttribution: function() {
-    this.attributionDiv.innerHTML = Layers.getAttribution(this.attribution).join(' &middot; ');
+    this.attributionDiv.innerHTML = this.layers.getAttribution(this.attribution).join(' &middot; ');
   },
 
   restoreState: function(options) {
@@ -186,14 +192,13 @@ GLMap.prototype = {
       x = pos.x-this.center.x,
       y = pos.y-this.center.y;
 
-    var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.viewMatrix, Layers.perspective));
     var scale = 1/Math.pow(2, 16 - this.zoom);
     var mMatrix = new glx.Matrix()
       .translate(0, 0, elevation)
       .scale(scale, scale, scale*HEIGHT_SCALE)
       .translate(x, y, 0);
 
-    var mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
+    var mvp = glx.Matrix.multiply(mMatrix, this.renderer.vpMatrix);
 
     var t = glx.Matrix.transform(mvp);
     return { x: t.x*this.width, y: this.height - t.y*this.height, z: t.z }; // takes current cam pos into account.
@@ -298,23 +303,25 @@ GLMap.prototype = {
   },
 
   getPerspective: function() {
-    return Layers.perspective;
+    return this.renderer.pMatrix;
   },
 
   addLayer: function(layer) {
-    Layers.add(layer);
+    this.layers.add(layer);
     this.updateAttribution();
     return this;
   },
 
   removeLayer: function(layer) {
-    Layers.remove(layer);
+    this.layers.remove(layer);
     this.updateAttribution();
   },
 
   destroy: function() {
     this.listeners = null;
     this.interaction.destroy();
+    this.layers.destroy();
+    this.renderer.destroy();
   }
 };
 

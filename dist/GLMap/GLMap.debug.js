@@ -806,11 +806,184 @@ glx.mesh.Cube = function(size, color) {
 
 return glx;
 }(this));
+var Color = (function(window) {
+
+
+var w3cColors = {
+  aqua:'#00ffff',
+  black:'#000000',
+  blue:'#0000ff',
+  fuchsia:'#ff00ff',
+  gray:'#808080',
+  grey:'#808080',
+  green:'#008000',
+  lime:'#00ff00',
+  maroon:'#800000',
+  navy:'#000080',
+  olive:'#808000',
+  orange:'#ffa500',
+  purple:'#800080',
+  red:'#ff0000',
+  silver:'#c0c0c0',
+  teal:'#008080',
+  white:'#ffffff',
+  yellow:'#ffff00'
+};
+
+function hue2rgb(p, q, t) {
+  if (t < 0) t += 1;
+  if (t > 1) t -= 1;
+  if (t < 1/6) return p + (q-p) * 6 * t;
+  if (t < 1/2) return q;
+  if (t < 2/3) return p + (q-p) * (2/3 - t) * 6;
+  return p;
+}
+
+function clamp(v, max) {
+  return Math.min(max, Math.max(0, v));
+}
+
+var Color = function(h, s, l, a) {
+  this.H = h;
+  this.S = s;
+  this.L = l;
+  this.A = a;
+};
+
+/*
+ * str can be in any of these:
+ * #0099ff rgb(64, 128, 255) rgba(64, 128, 255, 0.5)
+ */
+Color.parse = function(str) {
+  var
+    r = 0, g = 0, b = 0, a = 1,
+    m;
+
+  str = (''+ str).toLowerCase();
+  str = w3cColors[str] || str;
+
+  if ((m = str.match(/^#(\w{2})(\w{2})(\w{2})$/))) {
+    r = parseInt(m[1], 16);
+    g = parseInt(m[2], 16);
+    b = parseInt(m[3], 16);
+  } else if ((m = str.match(/rgba?\((\d+)\D+(\d+)\D+(\d+)(\D+([\d.]+))?\)/))) {
+    r = parseInt(m[1], 10);
+    g = parseInt(m[2], 10);
+    b = parseInt(m[3], 10);
+    a = m[4] ? parseFloat(m[5]) : 1;
+  } else {
+    return;
+  }
+
+  return this.fromRGBA(r, g, b, a);
+};
+
+Color.fromRGBA = function(r, g, b, a) {
+  if (typeof r === 'object') {
+    g = r.g / 255;
+    b = r.b / 255;
+    a = (r.a !== undefined ? r.a : 1);
+    r = r.r / 255;
+  } else {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    a = (a !== undefined ? a : 1);
+  }
+
+  var
+    max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    h, s, l = (max+min) / 2,
+    d = max-min;
+
+  if (!d) {
+    h = s = 0; // achromatic
+  } else {
+    s = l > 0.5 ? d / (2-max-min) : d / (max+min);
+    switch (max) {
+      case r: h = (g-b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b-r) / d + 2; break;
+      case b: h = (r-g) / d + 4; break;
+    }
+    h *= 60;
+  }
+
+  return new Color(h, s, l, a);
+};
+
+Color.prototype = {
+
+  toRGBA: function(normalized) {
+    var
+      h = clamp(this.H, 360),
+      s = clamp(this.S, 1),
+      l = clamp(this.L, 1),
+      rgba = { a: clamp(this.A, 1) };
+
+    // achromatic
+    if (s === 0) {
+      rgba.r = l;
+      rgba.g = l;
+      rgba.b = l;
+    } else {
+      var
+        q = l < 0.5 ? l * (1+s) : l + s - l*s,
+        p = 2 * l-q;
+        h /= 360;
+
+      rgba.r = hue2rgb(p, q, h + 1/3);
+      rgba.g = hue2rgb(p, q, h);
+      rgba.b = hue2rgb(p, q, h - 1/3);
+    }
+
+    if (normalized) {
+      return rgba;
+    }
+
+    return {
+      r: Math.round(rgba.r*255),
+      g: Math.round(rgba.g*255),
+      b: Math.round(rgba.b*255),
+      a: rgba.a
+    };
+  },
+
+  toString: function() {
+    var rgba = this.toRGBA();
+
+    if (rgba.a === 1) {
+      return '#' + ((1 <<24) + (rgba.r <<16) + (rgba.g <<8) + rgba.b).toString(16).slice(1, 7);
+    }
+    return 'rgba(' + [rgba.r, rgba.g, rgba.b, rgba.a.toFixed(2)].join(',') + ')';
+  },
+
+  hue: function(h) {
+    return new Color(this.H*h, this.S, this.L, this.A);
+  },
+
+  saturation: function(s) {
+    return new Color(this.H, this.S*s, this.L, this.A);
+  },
+
+  lightness: function(l) {
+    return new Color(this.H, this.S, this.L*l, this.A);
+  },
+
+  alpha: function(a) {
+    return new Color(this.H, this.S, this.L, this.A*a);
+  }
+};
+
+return Color; }(this));
 
 var document = global.document;
+var FOG_COLOR = '#f0f8ff';
+var FOG_RADIUS = 1500;
 
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
+  options = options || {};
 
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
@@ -826,7 +999,6 @@ var GLMap = function(container, options) {
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
-  this.viewMatrix = new glx.Matrix(); // there are early actions that rely on an existing Map transform
 
   this.listeners = {};
 
@@ -839,7 +1011,12 @@ var GLMap = function(container, options) {
     }.bind(this));
   }
 
+  this.fogColor = Color.parse(options.fogColor || FOG_COLOR).toRGBA(true);
+
   this.interaction = new Interaction(this, this.container);
+  this.layers      = new Layers(this);
+  this.renderer    = new Renderer(this);
+
   if (options.disabled) {
     this.setDisabled(true);
   }
@@ -850,8 +1027,7 @@ var GLMap = function(container, options) {
   this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
 
-  Layers.init(this);
-  Layers.render();
+  this.renderer.start();
 };
 
 GLMap.TILE_SIZE = 256;
@@ -859,7 +1035,7 @@ GLMap.TILE_SIZE = 256;
 GLMap.prototype = {
 
   updateAttribution: function() {
-    this.attributionDiv.innerHTML = Layers.getAttribution(this.attribution).join(' &middot; ');
+    this.attributionDiv.innerHTML = this.layers.getAttribution(this.attribution).join(' &middot; ');
   },
 
   restoreState: function(options) {
@@ -994,14 +1170,13 @@ GLMap.prototype = {
       x = pos.x-this.center.x,
       y = pos.y-this.center.y;
 
-    var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.viewMatrix, Layers.perspective));
     var scale = 1/Math.pow(2, 16 - this.zoom);
     var mMatrix = new glx.Matrix()
       .translate(0, 0, elevation)
       .scale(scale, scale, scale*HEIGHT_SCALE)
       .translate(x, y, 0);
 
-    var mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
+    var mvp = glx.Matrix.multiply(mMatrix, this.renderer.vpMatrix);
 
     var t = glx.Matrix.transform(mvp);
     return { x: t.x*this.width, y: this.height - t.y*this.height, z: t.z }; // takes current cam pos into account.
@@ -1106,23 +1281,25 @@ GLMap.prototype = {
   },
 
   getPerspective: function() {
-    return Layers.perspective;
+    return this.renderer.pMatrix;
   },
 
   addLayer: function(layer) {
-    Layers.add(layer);
+    this.layers.add(layer);
     this.updateAttribution();
     return this;
   },
 
   removeLayer: function(layer) {
-    Layers.remove(layer);
+    this.layers.remove(layer);
     this.updateAttribution();
   },
 
   destroy: function() {
     this.listeners = null;
     this.interaction.destroy();
+    this.layers.destroy();
+    this.renderer.destroy();
   }
 };
 
@@ -1348,29 +1525,136 @@ Interaction.prototype = {
 //  this.map.setTilt(prevTilt ...);
   },
 
-  destroy: function() {}
+  destroy: function() {
+    this.disabled = true;
+  }
 };
 
 
-var SkyDome = {};
+var Renderer = function(map) {
+  this.map = map;
+  this.vMatrix   = new glx.Matrix();
+  this.pMatrix   = new glx.Matrix();
+  this.vpMatrix  = new glx.Matrix();
+  this.skyDome   = new SkyDome(map);
+};
 
-(function() {
+Renderer.prototype = {
 
-  var shader;
+  start: function() {
+    var map = this.map;
+    var gl = map.context;
 
-  var baseRadius = 500;
+    map.on('resize', this.onResize.bind(this));
+    this.onResize();
 
-  var vertexBuffer;
-  var texCoordBuffer;
-  var texture;
-  var textureIsLoaded;
+    map.on('change', this.onChange.bind(this));
+    this.onChange();
 
-  var latSegments = 8;
-  var lonSegments = 24;
+    gl.cullFace(gl.BACK);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
 
-  function createDome(radius) {
+    map.on('contextlost', function() {
+      //this.stop();
+    }.bind(this));
+
+    map.on('contextrestored', function() {
+      //this.start();
+    }.bind(this));
+
+    this.loop = setInterval(function() {
+      requestAnimationFrame(function() {
+// console.log('CONTEXT LOST?', gl.isContextLost());
+
+        gl.clearColor(map.fogColor.r, map.fogColor.g, map.fogColor.b, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        this.skyDome.render(this.vpMatrix);
+
+        var layers = map.layers.items;
+        for (var i = 0; i < layers.length; i++) {
+          layers[i].render(this.vpMatrix);
+        }
+
+      }.bind(this));
+    }.bind(this), 17);
+  },
+
+  stop: function() {
+    clearInterval(this.loop);
+  },
+
+  onChange: function() {
+    var map = this.map;
+    this.vMatrix = new glx.Matrix()
+      .rotateZ(map.rotation)
+      .rotateX(map.tilt);
+
+    this.vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.vMatrix, this.pMatrix));
+  },
+
+  onResize: function() {
     var
-      res = { vertices: [], texCoords: [] },
+      map = this.map,
+      width = map.width,
+      height = map.height,
+      refHeight = 1024,
+      refVFOV = 45;
+
+    this.pMatrix = new glx.Matrix()
+      .translate(0, -height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
+      .scale(1, -1, 1) // flip Y
+      .multiply(new glx.Matrix.Perspective(refVFOV * height / refHeight, width/height, 0.1, 5000))
+      .translate(0, -1, 0); // camera y offset
+
+    map.context.viewport(0, 0, width, height);
+
+    this.vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.vMatrix, this.pMatrix));
+
+    this.fogRadius = Math.sqrt(width*width + height*height) / 1; // 2 would fit fine but camera is too close
+  },
+
+  destroy: function() {
+    this.stop();
+  }
+};
+
+
+var SkyDome = function(map) {
+  this.map = map;
+
+  var geometry = this.createGeometry(this.baseRadius);
+  this.vertexBuffer   = new glx.Buffer(3, new Float32Array(geometry.vertices));
+  this.texCoordBuffer = new glx.Buffer(2, new Float32Array(geometry.texCoords));
+
+  this.shader = new glx.Shader({
+    vertexShader: Shaders.skydome.vertex,
+    fragmentShader: Shaders.skydome.fragment,
+    attributes: ["aPosition", "aTexCoord"],
+    uniforms: ["uMatrix", "uTileImage", "uFogColor"]
+  });
+
+//Activity.setBusy();
+  var url = 'GLMap/skydome.jpg';
+  this.texture = new glx.texture.Image(url, function(image) {
+//  Activity.setIdle();
+    if (image) {
+      this.isReady = true;
+    }
+  }.bind(this));
+};
+
+SkyDome.prototype = {
+
+  baseRadius: 500,
+
+  createGeometry: function(radius) {
+    var
+      latSegments = 8,
+      lonSegments = 24,
+      vertices = [],
+      texCoords = [],
       sin = Math.sin,
       cos = Math.cos,
       PI = Math.PI,
@@ -1404,99 +1688,70 @@ var SkyDome = {};
         C = [x2*cos(polar2), y2*cos(polar2), radius*sin(polar2)];
         D = [x1*cos(polar2), y1*cos(polar2), radius*sin(polar2)];
 
-        res.vertices.push.apply(res.vertices, A);
-        res.vertices.push.apply(res.vertices, B);
-        res.vertices.push.apply(res.vertices, C);
-        res.vertices.push.apply(res.vertices, A);
-        res.vertices.push.apply(res.vertices, C);
-        res.vertices.push.apply(res.vertices, D);
+        vertices.push.apply(vertices, A);
+        vertices.push.apply(vertices, B);
+        vertices.push.apply(vertices, C);
+        vertices.push.apply(vertices, A);
+        vertices.push.apply(vertices, C);
+        vertices.push.apply(vertices, D);
 
         tcTop    = 1 - (j+1)/latSegments;
         tcBottom = 1 - j/latSegments;
 
-        res.texCoords.push(tcLeft, tcBottom, tcRight, tcBottom, tcRight, tcTop, tcLeft, tcBottom, tcRight, tcTop, tcLeft, tcTop);
+        texCoords.push(tcLeft, tcBottom, tcRight, tcBottom, tcRight, tcTop, tcLeft, tcBottom, tcRight, tcTop, tcLeft, tcTop);
       }
     }
 
-    return res;
-  }
+    return { vertices: vertices, texCoords: texCoords };
+  },
 
-  SkyDome.initShader = function(options) {
-    var url = 'skydome.jpg';
-
-    var tris = createDome(baseRadius);
-
-    this.resize();
-    Events.on('resize', this.resize.bind(this));
-
-    shader = new glx.Shader({
-      vertexShader: Shaders.skydome.vertex,
-      fragmentShader: Shaders.skydome.fragment,
-      attributes: ["aPosition", "aTexCoord"],
-      uniforms: ["uMatrix", "uTileImage", "uFogColor"]
-    });
-
-    this.fogColor = options.fogColor;
-
-    vertexBuffer = new glx.Buffer(3, new Float32Array(tris.vertices));
-    texCoordBuffer = new glx.Buffer(2, new Float32Array(tris.texCoords));
-    Activity.setBusy();
-    texture = new glx.texture.Image(url, function(image) {
-      Activity.setIdle();
-      if (image) {
-        textureIsLoaded = true;
-      }
-    });
-
-    return this;
-  };
-
-  SkyDome.resize = function() {
-    this.radius = Math.sqrt(MAP.width*MAP.width + MAP.height*MAP.height) / 1; // 2 would fit fine but camera is too close
-  };
-
-  SkyDome.render = function(vpMatrix) {
-    if (!textureIsLoaded) {
+  render: function(vpMatrix) {
+    if (!this.isReady) {
       return;
     }
 
-    var gl = MAP.getContext();
+    var
+      map = this.map,
+      gl = map.context,
+      fogColor = map.fogColor,
+      shader = this.shader;
 
     shader.enable();
 
-    gl.uniform3fv(shader.uniforms.uFogColor, [this.fogColor.r, this.fogColor.g, this.fogColor.b]);
+    gl.uniform3fv(shader.uniforms.uFogColor, [fogColor.r, fogColor.g, fogColor.b]);
 
     var mMatrix = new glx.Matrix();
-    var scale = this.radius/baseRadius;
+    var scale = map.renderer.fogRadius/this.baseRadius;
     mMatrix.scale(scale, scale, scale);
 
-    var mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
-    gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, mvp);
+    gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
 
-    vertexBuffer.enable();
-    gl.vertexAttribPointer(shader.attributes.aPosition, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    this.vertexBuffer.enable();
+    gl.vertexAttribPointer(shader.attributes.aPosition, this.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-    texCoordBuffer.enable();
-    gl.vertexAttribPointer(shader.attributes.aTexCoord, texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    this.texCoordBuffer.enable();
+    gl.vertexAttribPointer(shader.attributes.aTexCoord, this.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-    texture.enable(0);
+    this.texture.enable(0);
     gl.uniform1i(shader.uniforms.uTileImage, 0);
 
-    gl.drawArrays(gl.TRIANGLES, 0, vertexBuffer.numItems);
+    gl.drawArrays(gl.TRIANGLES, 0, this.vertexBuffer.numItems);
 
     shader.disable();
-  };
-
-}());
-
-
-var Layers = {
-
-  init: function(map) {
-    this.map = map;
   },
 
-  items: [],
+  destroy: function() {
+    this.texture.destroy();
+  }
+};
+
+
+var Layers = function(map) {
+  this.map = map;
+  this.items = [];
+};
+
+Layers.prototype = {
 
   add: function(layer) {
     this.items.push(layer);
@@ -1521,69 +1776,9 @@ var Layers = {
     return attribution;
   },
 
-  render: function(options) {
-//  this.fogColor = options.fogColor ? Color.parse(options.fogColor).toRGBA(true) : FOG_COLOR;
-    var gl = this.map.context;
-
-    this.resize();
-    this.map.on('resize', this.resize.bind(this));
-
-    gl.cullFace(gl.BACK);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-
-    this.map.on('contextlost', function() {
-      //  this.stop();
-    }.bind(this));
-
-    this.map.on('contextrestored', function() {
-      //  this.start();
-    }.bind(this));
-
-    this.loop = setInterval(function() {
-      requestAnimationFrame(function() {
-        this.map.viewMatrix = new glx.Matrix()
-          .rotateZ(this.map.rotation)
-          .rotateX(this.map.tilt);
-
-// console.log('CONTEXT LOST?', gl.isContextLost());
-
-          var vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.map.viewMatrix, this.perspective));
-
-//        gl.clearColor(this.fogColor.r, this.fogColor.g, this.fogColor.b, 1);
-          gl.clearColor(0.5, 0.5, 0.5, 1);
-          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        for (var i = 0; i < this.items.length; i++) {
-          this.items[i].render(vpMatrix);
-        }
-      }.bind(this));
-    }.bind(this), 17);
-  },
-
-  stop: function() {
-    clearInterval(this.loop);
-  },
-
-  resize: function() {
-    var refHeight = 1024;
-    var refVFOV = 45;
-
-    this.perspective = new glx.Matrix()
-      .translate(0, -this.map.height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
-      .scale(1, -1, 1) // flip Y
-      .multiply(new glx.Matrix.Perspective(refVFOV * this.map.height / refHeight, this.map.width/this.map.height, 0.1, 5000))
-      .translate(0, -1, 0); // camera y offset
-
-    this.map.context.viewport(0, 0, this.map.width, this.map.height);
-  },
-
   destroy: function() {
-    this.stop();
     for (var i = 0; i < this.items.length; i++) {
-      if (this.items[i].destroy) {
-        this.items[i].destroy();
-      }
+      this.items[i].destroy();
     }
     this.items = null;
   }
@@ -1592,7 +1787,6 @@ var Layers = {
 
 GLMap.TileLayer = function(source, options) {
   this.source = source;
-
   options = options || {};
 
   this.attribution = options.attribution;
@@ -1620,13 +1814,13 @@ GLMap.TileLayer.prototype = {
 
   addTo: function(map) {
     this.map = map;
-    this.map.addLayer(this);
+    map.addLayer(this);
 
-    this.map.on('change', function() {
+    map.on('change', function() {
       this.update(2000);
     }.bind(this));
 
-    this.map.on('resize', this.update.bind(this));
+    map.on('resize', this.update.bind(this));
 
     this.update();
   },
@@ -1640,7 +1834,9 @@ GLMap.TileLayer.prototype = {
   // strategy: start loading after {delay}ms, skip any attempts until then
   // effectively loads in intervals during movement
   update: function(delay) {
-    if (this.map.zoom < this.minZoom || this.map.zoom > this.maxZoom) {
+    var map = this.map;
+
+    if (map.zoom < this.minZoom || map.zoom > this.maxZoom) {
       return;
     }
 
@@ -1668,10 +1864,11 @@ GLMap.TileLayer.prototype = {
 
   updateBounds: function() {
     var
-      tileZoom = Math.round(this.map.zoom),
+      map = this.map,
+      tileZoom = Math.round(map.zoom),
       radius = 1500, // SkyDome.radius,
-      ratio = Math.pow(2, tileZoom-this.map.zoom)/GLMap.TILE_SIZE,
-      mapCenter = this.map.center;
+      ratio = Math.pow(2, tileZoom-map.zoom)/GLMap.TILE_SIZE,
+      mapCenter = map.center;
 
     this.minX = ((mapCenter.x-radius)*ratio <<0);
     this.minY = ((mapCenter.y-radius)*ratio <<0);
@@ -1683,13 +1880,14 @@ GLMap.TileLayer.prototype = {
     this.updateBounds();
 
     var
+      map = this.map,
       tileX, tileY,
-      tileZoom = Math.round(this.map.zoom),
+      tileZoom = Math.round(map.zoom),
       key,
       queue = [], queueLength,
       tileAnchor = [
-        this.map.center.x/GLMap.TILE_SIZE <<0,
-        this.map.center.y/GLMap.TILE_SIZE <<0
+        map.center.x/GLMap.TILE_SIZE <<0,
+        map.center.y/GLMap.TILE_SIZE <<0
       ];
 
     for (tileY = this.minY; tileY < this.maxY; tileY++) {
@@ -1709,7 +1907,7 @@ GLMap.TileLayer.prototype = {
     }
 
     queue.sort(function(a, b) {
-      return b.dist-a.dist;
+      return a.dist-b.dist;
     });
 
     var tile;
@@ -1742,21 +1940,24 @@ GLMap.TileLayer.prototype = {
 
   render: function(vpMatrix) {
     var
-      gl = this.map.getContext(),
+      map = this.map,
+      fogColor = map.fogColor,
+      gl = map.context,
+      shader = this.shader,
       tile, mMatrix,
-      tileZoom = Math.round(this.map.zoom),
-      ratio = 1 / Math.pow(2, tileZoom - this.map.zoom),
-      mapCenter = this.map.center;
+      tileZoom = Math.round(map.zoom),
+      ratio = 1 / Math.pow(2, tileZoom - map.zoom),
+      mapCenter = map.center;
 
-    this.shader.enable();
+    shader.enable();
 
-    gl.uniform1f(this.shader.uniforms.uFogRadius, this.map.fogRadius);
-    gl.uniform3fv(this.shader.uniforms.uFogColor, [this.map.fogColor.r, this.map.fogColor.g, this.map.fogColor.b]);
+    gl.uniform1f(shader.uniforms.uFogRadius, map.renderer.fogRadius);
+    gl.uniform3fv(shader.uniforms.uFogColor, [fogColor.r, fogColor.g, fogColor.b]);
 
     for (var key in this.tiles) {
       tile = this.tiles[key];
 
-      if (!tile.isLoaded) {
+      if (!tile.isReady) {
         continue;
       }
 
@@ -1764,22 +1965,22 @@ GLMap.TileLayer.prototype = {
       mMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
       mMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
 
-      gl.uniformMatrix4fv(this.shader.uniforms.uMMatrix, false, mMatrix.data);
-      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
+      gl.uniformMatrix4fv(shader.uniforms.uMMatrix, false, mMatrix.data);
+      gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
 
       tile.vertexBuffer.enable();
-      gl.vertexAttribPointer(this.shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texCoordBuffer.enable();
-      gl.vertexAttribPointer(this.shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texture.enable(0);
-      gl.uniform1i(this.shader.uniforms.uTileImage, 0);
+      gl.uniform1i(shader.uniforms.uTileImage, 0);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, tile.vertexBuffer.numItems);
     }
 
-    this.shader.disable();
+    shader.disable();
   },
 
   destroy: function() {
@@ -1829,9 +2030,11 @@ GLMap.Tile = function(x, y, zoom) {
 
 GLMap.Tile.prototype = {
   load: function(url) {
+    //Activity.setBusy();
     this.texture = new glx.texture.Image(url, function(image) {
+      //Activity.setIdle();
       if (image) {
-        this.isLoaded = true;
+        this.isReady = true;
       }
     }.bind(this));
   },

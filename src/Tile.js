@@ -36,9 +36,11 @@ GLMap.Tile = function(x, y, zoom) {
 
 GLMap.Tile.prototype = {
   load: function(url) {
+    //Activity.setBusy();
     this.texture = new glx.texture.Image(url, function(image) {
+      //Activity.setIdle();
       if (image) {
-        this.isLoaded = true;
+        this.isReady = true;
       }
     }.bind(this));
   },
