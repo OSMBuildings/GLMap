@@ -2,7 +2,7 @@
   "shaders": ["tile", "skydome"],
 
   "lib": [
-    "lib/glx.debug.js",
+    "lib/GLX.debug.js",
     "lib/Color.debug.js"
   ],
 

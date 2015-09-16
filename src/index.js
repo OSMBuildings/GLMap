@@ -1,5 +1,6 @@
 
 var document = global.document;
+var glx;
 var FOG_COLOR = '#f0f8ff';
 var FOG_RADIUS = 1500;
 
@@ -10,7 +11,7 @@ var GLMap = function(container, options) {
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
   this.height = this.container.offsetHeight;
-  this.context = glx.View(this.container, this.width, this.height);
+  glx = new GLX(this.container, this.width, this.height);
 
   this.minZoom = parseFloat(options.minZoom) || 10;
   this.maxZoom = parseFloat(options.maxZoom) || 20;
@@ -148,7 +149,7 @@ GLMap.prototype = {
   //***************************************************************************
 
   getContext: function() {
-    return this.context;
+    return glx.context;
   },
 
   on: function(type, fn) {
@@ -265,8 +266,8 @@ GLMap.prototype = {
 
   setSize: function(size) {
     if (size.width !== this.width || size.height !== this.height) {
-      this.context.canvas.width = this.width = size.width;
-      this.context.canvas.height = this.height = size.height;
+      glx.context.canvas.width = this.width = size.width;
+      glx.context.canvas.height = this.height = size.height;
       this.emit('resize');
     }
     return this;

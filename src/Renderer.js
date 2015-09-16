@@ -11,7 +11,7 @@ Renderer.prototype = {
 
   start: function() {
     var map = this.map;
-    var gl = map.context;
+    var gl = glx.context;
 
     map.on('resize', this.onResize.bind(this));
     this.onResize();
@@ -76,7 +76,7 @@ Renderer.prototype = {
       .multiply(new glx.Matrix.Perspective(refVFOV * height / refHeight, width/height, 0.1, 5000))
       .translate(0, -1, 0); // camera y offset
 
-    map.context.viewport(0, 0, width, height);
+    glx.context.viewport(0, 0, width, height);
 
     this.vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.vMatrix, this.pMatrix));
 

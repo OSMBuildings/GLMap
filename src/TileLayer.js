@@ -157,7 +157,7 @@ GLMap.TileLayer.prototype = {
     var
       map = this.map,
       fogColor = map.fogColor,
-      gl = map.context,
+      gl = glx.context,
       shader = this.shader,
       tile, mMatrix,
       tileZoom = Math.round(map.zoom),

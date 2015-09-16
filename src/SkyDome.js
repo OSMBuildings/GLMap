@@ -90,7 +90,7 @@ SkyDome.prototype = {
 
     var
       map = this.map,
-      gl = map.context,
+      gl = glx.context,
       fogColor = map.fogColor,
       shader = this.shader;
 
