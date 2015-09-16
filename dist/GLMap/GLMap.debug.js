@@ -1029,7 +1029,7 @@ var GLMap = function(container, options) {
     this.setDisabled(true);
   }
 
-  this.attribution = options.attribution ? [options.attribution] : [];
+  this.attribution = options.attribution;
   this.attributionDiv = document.createElement('DIV');
   this.attributionDiv.className = 'glmap-attribution';
   this.container.appendChild(this.attributionDiv);
