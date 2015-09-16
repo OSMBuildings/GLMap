@@ -1,10 +1,8 @@
-(function(global) {var glx = (function(global) {
-var glx = {};
+(function(global) {
+//var ext = GL.getExtension('WEBGL_lose_context');
+//ext.loseContext();
 
-var GL;
-
-glx.View = function(container, width, height) {
-
+var GLX = function(container, width, height) {
   var canvas = document.createElement('CANVAS');
   canvas.style.position = 'absolute';
   canvas.width = width;
@@ -17,15 +15,17 @@ glx.View = function(container, width, height) {
     premultipliedAlpha: false
   };
 
+  var context;
+
   try {
-    GL = canvas.getContext('webgl', options);
+    context = canvas.getContext('webgl', options);
   } catch (ex) {}
-  if (!GL) {
+  if (!context) {
     try {
-      GL = canvas.getContext('experimental-webgl', options);
+      context = canvas.getContext('experimental-webgl', options);
     } catch (ex) {}
   }
-  if (!GL) {
+  if (!context) {
     throw new Error('WebGL not supported');
   }
 
@@ -37,42 +37,37 @@ glx.View = function(container, width, height) {
     console.warn('context restored');
   });
 
-  //var ext = GL.getExtension("WEBGL_lose_context");
-  //ext.loseContext();
+  context.viewport(0, 0, width, height);
+  context.cullFace(context.BACK);
+  context.enable(context.CULL_FACE);
+  context.enable(context.DEPTH_TEST);
+  context.clearColor(0.5, 0.5, 0.5, 1);
 
-  GL.viewport(0, 0, width, height);
-  GL.cullFace(GL.BACK);
-  GL.enable(GL.CULL_FACE);
-  GL.enable(GL.DEPTH_TEST);
-  GL.clearColor(0.5, 0.5, 0.5, 1);
-
-  return GL;
+  return GLX.use(context);
 };
 
-glx.start = function(render) {
-  return setInterval(function() {
-    requestAnimationFrame(render);
-  }, 17);
-};
+GLX.use = function(context) {
 
-glx.stop = function(loop) {
-  clearInterval(loop);
-};
+  return (function(GL) {
 
-glx.destroy = function(GL) {
-  GL.canvas.parentNode.removeChild(GL.canvas);
-  GL.canvas = null;
-};
+    var glx = {};
 
-//*****************************************************************************
+    glx.context = context;
 
-if (typeof define === 'function') {
-  define([], glx);
-} else if (typeof exports === 'object') {
-  module.exports = glx;
-} else {
-  global.glx = glx;
-}
+    glx.start = function(render) {
+      return setInterval(function() {
+        requestAnimationFrame(render);
+      }, 17);
+    };
+
+    glx.stop = function(loop) {
+      clearInterval(loop);
+    };
+
+    glx.destroy = function(GL) {
+      GL.canvas.parentNode.removeChild(GL.canvas);
+      GL.canvas = null;
+    };
 
 
 glx.util = {};
@@ -804,8 +799,20 @@ glx.mesh.Cube = function(size, color) {
   this.transform = new glx.Matrix();
 };
 
-return glx;
-}(this));
+
+    return glx;
+
+  }(context));
+};
+
+if (typeof define === 'function') {
+  define([], GLX);
+} else if (typeof exports === 'object') {
+  module.exports = GLX;
+} else {
+  global.GLX = GLX;
+}
+
 var Color = (function(window) {
 
 
@@ -978,6 +985,7 @@ Color.prototype = {
 return Color; }(this));
 
 var document = global.document;
+var glx;
 var FOG_COLOR = '#f0f8ff';
 var FOG_RADIUS = 1500;
 
@@ -988,7 +996,7 @@ var GLMap = function(container, options) {
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
   this.height = this.container.offsetHeight;
-  this.context = glx.View(this.container, this.width, this.height);
+  glx = new GLX(this.container, this.width, this.height);
 
   this.minZoom = parseFloat(options.minZoom) || 10;
   this.maxZoom = parseFloat(options.maxZoom) || 20;
@@ -1126,7 +1134,7 @@ GLMap.prototype = {
   //***************************************************************************
 
   getContext: function() {
-    return this.context;
+    return glx.context;
   },
 
   on: function(type, fn) {
@@ -1243,8 +1251,8 @@ GLMap.prototype = {
 
   setSize: function(size) {
     if (size.width !== this.width || size.height !== this.height) {
-      this.context.canvas.width = this.width = size.width;
-      this.context.canvas.height = this.height = size.height;
+      glx.context.canvas.width = this.width = size.width;
+      glx.context.canvas.height = this.height = size.height;
       this.emit('resize');
     }
     return this;
@@ -1543,7 +1551,7 @@ Renderer.prototype = {
 
   start: function() {
     var map = this.map;
-    var gl = map.context;
+    var gl = glx.context;
 
     map.on('resize', this.onResize.bind(this));
     this.onResize();
@@ -1608,7 +1616,7 @@ Renderer.prototype = {
       .multiply(new glx.Matrix.Perspective(refVFOV * height / refHeight, width/height, 0.1, 5000))
       .translate(0, -1, 0); // camera y offset
 
-    map.context.viewport(0, 0, width, height);
+    glx.context.viewport(0, 0, width, height);
 
     this.vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.vMatrix, this.pMatrix));
 
@@ -1712,7 +1720,7 @@ SkyDome.prototype = {
 
     var
       map = this.map,
-      gl = map.context,
+      gl = glx.context,
       fogColor = map.fogColor,
       shader = this.shader;
 
@@ -1943,7 +1951,7 @@ GLMap.TileLayer.prototype = {
     var
       map = this.map,
       fogColor = map.fogColor,
-      gl = map.context,
+      gl = glx.context,
       shader = this.shader,
       tile, mMatrix,
       tileZoom = Math.round(map.zoom),
