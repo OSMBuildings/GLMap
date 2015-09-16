@@ -19,8 +19,8 @@ Layers.prototype = {
     }
   },
 
-  getAttribution: function(attribution) {
-    attribution = attribution || [];
+  getAttribution: function() {
+    var attribution = [];
     for (var i = 0; i < this.items.length; i++) {
       if (this.items[i].attribution) {
         attribution.push(this.items[i].attribution);

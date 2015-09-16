@@ -1043,7 +1043,11 @@ GLMap.TILE_SIZE = 256;
 GLMap.prototype = {
 
   updateAttribution: function() {
-    this.attributionDiv.innerHTML = this.layers.getAttribution(this.attribution).join(' &middot; ');
+    var attribution = this.layers.getAttribution();
+    if (this.attribution) {
+      attribution.unshift(this.attribution);
+    }
+    this.attributionDiv.innerHTML = attribution.join(' &middot; ');
   },
 
   restoreState: function(options) {
@@ -1288,8 +1292,12 @@ GLMap.prototype = {
     return this.tilt;
   },
 
-  getPerspective: function() {
-    return this.renderer.pMatrix;
+  getMatrix: function() {
+    return this.renderer.vpMatrix;
+  },
+
+  getFogRadius: function() {
+    return this.renderer.fogRadius;
   },
 
   addLayer: function(layer) {
@@ -1774,8 +1782,8 @@ Layers.prototype = {
     }
   },
 
-  getAttribution: function(attribution) {
-    attribution = attribution || [];
+  getAttribution: function() {
+    var attribution = [];
     for (var i = 0; i < this.items.length; i++) {
       if (this.items[i].attribution) {
         attribution.push(this.items[i].attribution);
