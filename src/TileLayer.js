@@ -12,13 +12,14 @@ GLMap.TileLayer = function(source, options) {
     this.maxZoom = this.minZoom;
   }
 
+//this.bgColor = Color.parse(options.bgColor || '#cccccc').toRGBA(true);
   this.buffer = options.buffer || 1;
 
   this.shader = new glx.Shader({
     vertexShader: Shaders.tile.vertex,
     fragmentShader: Shaders.tile.fragment,
     attributes: ["aPosition", "aTexCoord"],
-    uniforms: ["uMatrix", "uMMatrix", "uTileImage", "uFogRadius", "uFogColor"]
+    uniforms: ["uMatrix", "uMMatrix", "uTexIndex", "uFogRadius", "uFogColor"]
   });
 
   this.tiles = {};
@@ -189,7 +190,7 @@ GLMap.TileLayer.prototype = {
       gl.vertexAttribPointer(shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
       tile.texture.enable(0);
-      gl.uniform1i(shader.uniforms.uTileImage, 0);
+      gl.uniform1i(shader.uniforms.uTexIndex, 0);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, tile.vertexBuffer.numItems);
     }

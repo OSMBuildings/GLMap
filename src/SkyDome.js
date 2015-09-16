@@ -10,7 +10,7 @@ var SkyDome = function(map) {
     vertexShader: Shaders.skydome.vertex,
     fragmentShader: Shaders.skydome.fragment,
     attributes: ["aPosition", "aTexCoord"],
-    uniforms: ["uMatrix", "uTileImage", "uFogColor"]
+    uniforms: ["uMatrix", "uTexIndex", "uFogColor"]
   });
 
 //Activity.setBusy();
@@ -111,7 +111,7 @@ SkyDome.prototype = {
     gl.vertexAttribPointer(shader.attributes.aTexCoord, this.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
     this.texture.enable(0);
-    gl.uniform1i(shader.uniforms.uTileImage, 0);
+    gl.uniform1i(shader.uniforms.uTexIndex, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, this.vertexBuffer.numItems);
 
