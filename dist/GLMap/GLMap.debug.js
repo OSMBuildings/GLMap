@@ -807,6 +807,8 @@ glx.mesh.Cube = function(size, color) {
 return glx;
 }(this));
 
+var document = global.document;
+
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
 
@@ -1134,6 +1136,8 @@ if (typeof global.define === 'function') {
   global.GLMap = GLMap;
 }
 
+var Shaders = {"tile":{"vertex":"#ifdef GL_ES\n  precision mediump float;\n#endif\nattribute vec4 aPosition;\nattribute vec2 aTexCoord;\nuniform mat4 uMMatrix;\nuniform mat4 uMatrix;\nuniform float uFogRadius;\nvarying vec2 vTexCoord;\nvarying float vFogIntensity;\nfloat fogBlur = 200.0;\nvoid main() {\n  vec4 glPosition = uMatrix * aPosition;\n  gl_Position = glPosition;\n  vTexCoord = aTexCoord;\n  //*** fog *******************************************************************\n  vec4 mPosition = uMMatrix * aPosition;\n  float distance = length(mPosition);\n  // => (distance - (uFogRadius - fogBlur)) / (uFogRadius - (uFogRadius - fogBlur));\n  float fogIntensity = (distance - uFogRadius) / fogBlur + 1.1; // <- shifts blur in/out\n  vFogIntensity = clamp(fogIntensity, 0.0, 1.0);\n  //vFogIntensity = 0.0;\n}\n","fragment":"#ifdef GL_ES\n  precision mediump float;\n#endif\nuniform sampler2D uTileImage;\nuniform vec3 uFogColor;\nvarying vec2 vTexCoord;\nvarying float vFogIntensity;\nvoid main() {\n  vec3 color = vec3(texture2D(uTileImage, vec2(vTexCoord.x, -vTexCoord.y)));\n  gl_FragColor = vec4(mix(color, uFogColor, vFogIntensity), 1.0);\n}\n"},"skydome":{"vertex":"#ifdef GL_ES\n  precision mediump float;\n#endif\nattribute vec4 aPosition;\nattribute vec2 aTexCoord;\nuniform mat4 uMatrix;\nvarying vec2 vTexCoord;\nvarying float vFogIntensity;\nfloat gradientHeight = 10.0;\nfloat gradientStrength = 1.0;\nvoid main() {\n  gl_Position = uMatrix * aPosition;\n  vTexCoord = aTexCoord;\n  vFogIntensity = clamp((gradientHeight-aPosition.z) / (gradientHeight/gradientStrength), 0.0, gradientStrength);\n}\n","fragment":"#ifdef GL_ES\n  precision mediump float;\n#endif\nuniform sampler2D uTileImage;\nuniform vec3 uFogColor;\nvarying vec2 vTexCoord;\nvarying float vFogIntensity;\nvoid main() {\n  vec3 color = vec3(texture2D(uTileImage, vec2(vTexCoord.x, -vTexCoord.y)));\n  gl_FragColor = vec4(mix(color, uFogColor, vFogIntensity), 1.0);\n}\n"}};
+
 
 var Interaction = function(map, container) {
   this.map = map;
@@ -1263,6 +1267,20 @@ Interaction.prototype = {
     this.map.setZoom(this.map.zoom + adjust, e);
   },
 
+  moveMap: function(e) {
+    var dx = e.clientX - this.prevX;
+    var dy = e.clientY - this.prevY;
+    var r = rotatePoint(dx, dy, this.map.rotation*Math.PI/180);
+    this.map.setCenter({ x: this.map.center.x - r.x, y: this.map.center.y - r.y });
+  },
+
+  rotateMap: function(e) {
+    this.prevRotation += (e.clientX - this.prevX)*(360/innerWidth);
+    this.prevTilt -= (e.clientY - this.prevY)*(360/innerHeight);
+    this.map.setRotation(this.prevRotation);
+    this.map.setTilt(this.prevTilt);
+  },
+
   //***************************************************************************
   //***************************************************************************
 
@@ -1330,24 +1348,146 @@ Interaction.prototype = {
 //  this.map.setTilt(prevTilt ...);
   },
 
-  //***************************************************************************
-
-  moveMap: function(e) {
-    var dx = e.clientX - this.prevX;
-    var dy = e.clientY - this.prevY;
-    var r = rotatePoint(dx, dy, this.map.rotation*Math.PI/180);
-    this.map.setCenter({ x: this.map.center.x - r.x, y: this.map.center.y - r.y });
-  },
-
-  rotateMap: function(e) {
-    this.prevRotation += (e.clientX - this.prevX)*(360/innerWidth);
-    this.prevTilt -= (e.clientY - this.prevY)*(360/innerHeight);
-    this.map.setRotation(this.prevRotation);
-    this.map.setTilt(this.prevTilt);
-  },
-
   destroy: function() {}
 };
+
+
+var SkyDome = {};
+
+(function() {
+
+  var shader;
+
+  var baseRadius = 500;
+
+  var vertexBuffer;
+  var texCoordBuffer;
+  var texture;
+  var textureIsLoaded;
+
+  var latSegments = 8;
+  var lonSegments = 24;
+
+  function createDome(radius) {
+    var
+      res = { vertices: [], texCoords: [] },
+      sin = Math.sin,
+      cos = Math.cos,
+      PI = Math.PI,
+      azimuth1, x1, y1,
+      azimuth2, x2, y2,
+      polar1,
+      polar2,
+      A, B, C, D,
+      tcLeft,
+      tcRight,
+      tcTop,
+      tcBottom;
+
+    for (var i = 0, j; i < lonSegments; i++) {
+      tcLeft = i/lonSegments;
+      azimuth1 = tcLeft*2*PI; // convert to radiants [0...2*PI]
+      x1 = cos(azimuth1)*radius;
+      y1 = sin(azimuth1)*radius;
+
+      tcRight = (i+1)/lonSegments;
+      azimuth2 = tcRight*2*PI;
+      x2 = cos(azimuth2)*radius;
+      y2 = sin(azimuth2)*radius;
+
+      for (j = 0; j < latSegments; j++) {
+        polar1 = j*PI/(latSegments*2); //convert to radiants in [0..1/2*PI]
+        polar2 = (j+1)*PI/(latSegments*2);
+
+        A = [x1*cos(polar1), y1*cos(polar1), radius*sin(polar1)];
+        B = [x2*cos(polar1), y2*cos(polar1), radius*sin(polar1)];
+        C = [x2*cos(polar2), y2*cos(polar2), radius*sin(polar2)];
+        D = [x1*cos(polar2), y1*cos(polar2), radius*sin(polar2)];
+
+        res.vertices.push.apply(res.vertices, A);
+        res.vertices.push.apply(res.vertices, B);
+        res.vertices.push.apply(res.vertices, C);
+        res.vertices.push.apply(res.vertices, A);
+        res.vertices.push.apply(res.vertices, C);
+        res.vertices.push.apply(res.vertices, D);
+
+        tcTop    = 1 - (j+1)/latSegments;
+        tcBottom = 1 - j/latSegments;
+
+        res.texCoords.push(tcLeft, tcBottom, tcRight, tcBottom, tcRight, tcTop, tcLeft, tcBottom, tcRight, tcTop, tcLeft, tcTop);
+      }
+    }
+
+    return res;
+  }
+
+  SkyDome.initShader = function(options) {
+    var url = 'skydome.jpg';
+
+    var tris = createDome(baseRadius);
+
+    this.resize();
+    Events.on('resize', this.resize.bind(this));
+
+    shader = new glx.Shader({
+      vertexShader: Shaders.skydome.vertex,
+      fragmentShader: Shaders.skydome.fragment,
+      attributes: ["aPosition", "aTexCoord"],
+      uniforms: ["uMatrix", "uTileImage", "uFogColor"]
+    });
+
+    this.fogColor = options.fogColor;
+
+    vertexBuffer = new glx.Buffer(3, new Float32Array(tris.vertices));
+    texCoordBuffer = new glx.Buffer(2, new Float32Array(tris.texCoords));
+    Activity.setBusy();
+    texture = new glx.texture.Image(url, function(image) {
+      Activity.setIdle();
+      if (image) {
+        textureIsLoaded = true;
+      }
+    });
+
+    return this;
+  };
+
+  SkyDome.resize = function() {
+    this.radius = Math.sqrt(MAP.width*MAP.width + MAP.height*MAP.height) / 1; // 2 would fit fine but camera is too close
+  };
+
+  SkyDome.render = function(vpMatrix) {
+    if (!textureIsLoaded) {
+      return;
+    }
+
+    var gl = MAP.getContext();
+
+    shader.enable();
+
+    gl.uniform3fv(shader.uniforms.uFogColor, [this.fogColor.r, this.fogColor.g, this.fogColor.b]);
+
+    var mMatrix = new glx.Matrix();
+    var scale = this.radius/baseRadius;
+    mMatrix.scale(scale, scale, scale);
+
+    var mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
+    gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, mvp);
+
+    vertexBuffer.enable();
+    gl.vertexAttribPointer(shader.attributes.aPosition, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    texCoordBuffer.enable();
+    gl.vertexAttribPointer(shader.attributes.aTexCoord, texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    texture.enable(0);
+    gl.uniform1i(shader.uniforms.uTileImage, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, vertexBuffer.numItems);
+
+    shader.disable();
+  };
+
+}());
 
 
 var Layers = {
@@ -1413,7 +1553,7 @@ var Layers = {
 //        gl.clearColor(this.fogColor.r, this.fogColor.g, this.fogColor.b, 1);
           gl.clearColor(0.5, 0.5, 0.5, 1);
           gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-debugger
+
         for (var i = 0; i < this.items.length; i++) {
           this.items[i].render(vpMatrix);
         }
@@ -1452,7 +1592,6 @@ debugger
 
 GLMap.TileLayer = function(source, options) {
   this.source = source;
-//this.tileSize = 256;
 
   options = options || {};
 
@@ -1467,38 +1606,12 @@ GLMap.TileLayer = function(source, options) {
 
   this.buffer = options.buffer || 1;
 
-/* jshint
-multistr: true
-*/
-
   this.shader = new glx.Shader({
-    vertexShader: "\
-precision mediump float;\
-attribute vec4 aPosition;\
-attribute vec2 aTexCoord;\
-uniform mat4 uMatrix;\
-varying vec2 vTexCoord;\
-void main() {\
-  gl_Position = uMatrix * aPosition;\
-  vTexCoord = aTexCoord;\
-}",
-
-    fragmentShader: "\
-precision mediump float;\
-uniform sampler2D uTileImage;\
-varying vec2 vTexCoord;\
-void main() {\
-  gl_FragColor = texture2D(uTileImage, vec2(vTexCoord.x, -vTexCoord.y));\
-}",
-
-    attributes: ['aPosition', 'aTexCoord'],
-    uniforms: ['uMatrix', 'uTileImage']
-//    uniforms: ["uMMatrix", "uMatrix", "uTileImage", "uFogRadius", "uFogColor"]
+    vertexShader: Shaders.tile.vertex,
+    fragmentShader: Shaders.tile.fragment,
+    attributes: ["aPosition", "aTexCoord"],
+    uniforms: ["uMatrix", "uMMatrix", "uTileImage", "uFogRadius", "uFogColor"]
   });
-
-/* jshint
-multistr: false
-*/
 
   this.tiles = {};
 };
@@ -1596,7 +1709,7 @@ GLMap.TileLayer.prototype = {
     }
 
     queue.sort(function(a, b) {
-      return a.dist-b.dist;
+      return b.dist-a.dist;
     });
 
     var tile;
@@ -1630,15 +1743,15 @@ GLMap.TileLayer.prototype = {
   render: function(vpMatrix) {
     var
       gl = this.map.getContext(),
-      tile, tileMatrix,
+      tile, mMatrix,
       tileZoom = Math.round(this.map.zoom),
       ratio = 1 / Math.pow(2, tileZoom - this.map.zoom),
       mapCenter = this.map.center;
 
     this.shader.enable();
 
-//  gl.uniform1f(this.shader.uniforms.uFogRadius, SkyDome.radius);
-//  gl.uniform3fv(this.shader.uniforms.uFogColor, [Renderer.fogColor.r, Renderer.fogColor.g, Renderer.fogColor.b]);
+    gl.uniform1f(this.shader.uniforms.uFogRadius, this.map.fogRadius);
+    gl.uniform3fv(this.shader.uniforms.uFogColor, [this.map.fogColor.r, this.map.fogColor.g, this.map.fogColor.b]);
 
     for (var key in this.tiles) {
       tile = this.tiles[key];
@@ -1647,16 +1760,12 @@ GLMap.TileLayer.prototype = {
         continue;
       }
 
-      tileMatrix = new glx.Matrix();
-      tileMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
-      tileMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
+      mMatrix = new glx.Matrix();
+      mMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
+      mMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
 
-      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(tileMatrix, vpMatrix));
-
-      //gl.uniformMatrix4fv(shader.uniforms.uMMatrix, false, mMatrix.data);
-      //
-      //mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
-      //gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, mvp);
+      gl.uniformMatrix4fv(this.shader.uniforms.uMMatrix, false, mMatrix.data);
+      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
 
       tile.vertexBuffer.enable();
       gl.vertexAttribPointer(this.shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -1743,12 +1852,6 @@ function distance2(a, b) {
     dy = a[1]-b[1];
   return dx*dx + dy*dy;
 }
-
-//function pattern(str, param) {
-//  return str.replace(/\{(\w+)\}/g, function(tag, key) {
-//    return param[key] || tag;
-//  });
-//}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(value, min));

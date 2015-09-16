@@ -127,6 +127,20 @@ Interaction.prototype = {
     this.map.setZoom(this.map.zoom + adjust, e);
   },
 
+  moveMap: function(e) {
+    var dx = e.clientX - this.prevX;
+    var dy = e.clientY - this.prevY;
+    var r = rotatePoint(dx, dy, this.map.rotation*Math.PI/180);
+    this.map.setCenter({ x: this.map.center.x - r.x, y: this.map.center.y - r.y });
+  },
+
+  rotateMap: function(e) {
+    this.prevRotation += (e.clientX - this.prevX)*(360/innerWidth);
+    this.prevTilt -= (e.clientY - this.prevY)*(360/innerHeight);
+    this.map.setRotation(this.prevRotation);
+    this.map.setTilt(this.prevTilt);
+  },
+
   //***************************************************************************
   //***************************************************************************
 
@@ -192,22 +206,6 @@ Interaction.prototype = {
     this.map.setZoom(this.startZoom + (e.scale - 1));
     this.map.setRotation(this.prevRotation - e.rotation);
 //  this.map.setTilt(prevTilt ...);
-  },
-
-  //***************************************************************************
-
-  moveMap: function(e) {
-    var dx = e.clientX - this.prevX;
-    var dy = e.clientY - this.prevY;
-    var r = rotatePoint(dx, dy, this.map.rotation*Math.PI/180);
-    this.map.setCenter({ x: this.map.center.x - r.x, y: this.map.center.y - r.y });
-  },
-
-  rotateMap: function(e) {
-    this.prevRotation += (e.clientX - this.prevX)*(360/innerWidth);
-    this.prevTilt -= (e.clientY - this.prevY)*(360/innerHeight);
-    this.map.setRotation(this.prevRotation);
-    this.map.setTilt(this.prevTilt);
   },
 
   destroy: function() {}

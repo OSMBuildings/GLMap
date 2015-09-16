@@ -1,5 +1,5 @@
 {
-  "shaders": [],
+  "shaders": ["tile", "skydome"],
 
   "lib": [
     "lib/glx.debug.js"
@@ -7,8 +7,10 @@
 
   "src": [
     "src/index.js",
+    "src/Shaders.min.js",
     "src/Interaction.js",
-    "src/Layers.js",
+    "src/passes/SkyDome.js",
+    "src/passes/Layers.js",
     "src/TileLayer.js",
     "src/Tile.js",
     "src/util.js"

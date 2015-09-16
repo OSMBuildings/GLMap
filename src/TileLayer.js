@@ -1,7 +1,6 @@
 
 GLMap.TileLayer = function(source, options) {
   this.source = source;
-//this.tileSize = 256;
 
   options = options || {};
 
@@ -16,38 +15,12 @@ GLMap.TileLayer = function(source, options) {
 
   this.buffer = options.buffer || 1;
 
-/* jshint
-multistr: true
-*/
-
   this.shader = new glx.Shader({
-    vertexShader: "\
-precision mediump float;\
-attribute vec4 aPosition;\
-attribute vec2 aTexCoord;\
-uniform mat4 uMatrix;\
-varying vec2 vTexCoord;\
-void main() {\
-  gl_Position = uMatrix * aPosition;\
-  vTexCoord = aTexCoord;\
-}",
-
-    fragmentShader: "\
-precision mediump float;\
-uniform sampler2D uTileImage;\
-varying vec2 vTexCoord;\
-void main() {\
-  gl_FragColor = texture2D(uTileImage, vec2(vTexCoord.x, -vTexCoord.y));\
-}",
-
-    attributes: ['aPosition', 'aTexCoord'],
-    uniforms: ['uMatrix', 'uTileImage']
-//    uniforms: ["uMMatrix", "uMatrix", "uTileImage", "uFogRadius", "uFogColor"]
+    vertexShader: Shaders.tile.vertex,
+    fragmentShader: Shaders.tile.fragment,
+    attributes: ["aPosition", "aTexCoord"],
+    uniforms: ["uMatrix", "uMMatrix", "uTileImage", "uFogRadius", "uFogColor"]
   });
-
-/* jshint
-multistr: false
-*/
 
   this.tiles = {};
 };
@@ -145,7 +118,7 @@ GLMap.TileLayer.prototype = {
     }
 
     queue.sort(function(a, b) {
-      return a.dist-b.dist;
+      return b.dist-a.dist;
     });
 
     var tile;
@@ -179,15 +152,15 @@ GLMap.TileLayer.prototype = {
   render: function(vpMatrix) {
     var
       gl = this.map.getContext(),
-      tile, tileMatrix,
+      tile, mMatrix,
       tileZoom = Math.round(this.map.zoom),
       ratio = 1 / Math.pow(2, tileZoom - this.map.zoom),
       mapCenter = this.map.center;
 
     this.shader.enable();
 
-//  gl.uniform1f(this.shader.uniforms.uFogRadius, SkyDome.radius);
-//  gl.uniform3fv(this.shader.uniforms.uFogColor, [Renderer.fogColor.r, Renderer.fogColor.g, Renderer.fogColor.b]);
+    gl.uniform1f(this.shader.uniforms.uFogRadius, this.map.fogRadius);
+    gl.uniform3fv(this.shader.uniforms.uFogColor, [this.map.fogColor.r, this.map.fogColor.g, this.map.fogColor.b]);
 
     for (var key in this.tiles) {
       tile = this.tiles[key];
@@ -196,16 +169,12 @@ GLMap.TileLayer.prototype = {
         continue;
       }
 
-      tileMatrix = new glx.Matrix();
-      tileMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
-      tileMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
+      mMatrix = new glx.Matrix();
+      mMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
+      mMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
 
-      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(tileMatrix, vpMatrix));
-
-      //gl.uniformMatrix4fv(shader.uniforms.uMMatrix, false, mMatrix.data);
-      //
-      //mvp = glx.Matrix.multiply(mMatrix, vpMatrix);
-      //gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, mvp);
+      gl.uniformMatrix4fv(this.shader.uniforms.uMMatrix, false, mMatrix.data);
+      gl.uniformMatrix4fv(this.shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
 
       tile.vertexBuffer.enable();
       gl.vertexAttribPointer(this.shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);

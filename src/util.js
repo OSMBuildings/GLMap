@@ -6,12 +6,6 @@ function distance2(a, b) {
   return dx*dx + dy*dy;
 }
 
-//function pattern(str, param) {
-//  return str.replace(/\{(\w+)\}/g, function(tag, key) {
-//    return param[key] || tag;
-//  });
-//}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(value, min));
 }

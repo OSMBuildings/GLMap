@@ -1,4 +1,6 @@
 
+var document = global.document;
+
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
 
