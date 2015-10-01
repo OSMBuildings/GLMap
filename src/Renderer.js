@@ -1,10 +1,9 @@
 
 var Renderer = function(map) {
   this.map = map;
-  this.vMatrix   = new glx.Matrix();
-  this.pMatrix   = new glx.Matrix();
-  this.vpMatrix  = new glx.Matrix();
-  this.skyDome   = new SkyDome(map);
+  this.transformMatrix  = new glx.Matrix();
+  this.projectionMatrix = new glx.Matrix();
+  this.skyDome = new SkyDome(map);
 };
 
 Renderer.prototype = {
@@ -38,11 +37,11 @@ Renderer.prototype = {
         gl.clearColor(map.fogColor.r, map.fogColor.g, map.fogColor.b, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        this.skyDome.render(this.vpMatrix);
+//      this.skyDome.render(this.transformMatrix, this.projectionMatrix);
 
         var layers = map.layers.items;
         for (var i = 0; i < layers.length; i++) {
-          layers[i].render(this.vpMatrix);
+          layers[i].render(this.transformMatrix, this.projectionMatrix);
         }
 
       }.bind(this));
@@ -55,11 +54,12 @@ Renderer.prototype = {
 
   onChange: function() {
     var map = this.map;
-    this.vMatrix = new glx.Matrix()
+    this.transformMatrix = new glx.Matrix()
+      // altitude of the viewer
+      // 250 is good for NY
+//      .translate(0, 0, -250)
       .rotateZ(map.rotation)
       .rotateX(map.tilt);
-
-    this.vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.vMatrix, this.pMatrix));
   },
 
   onResize: function() {
@@ -69,16 +69,15 @@ Renderer.prototype = {
       height = map.height,
       refHeight = 1024,
       refVFOV = 45;
+      //refVFOV = 120;
 
-    this.pMatrix = new glx.Matrix()
-      .translate(0, -height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
+    this.projectionMatrix = new glx.Matrix()
+//    .translate(0, -height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
       .scale(1, -1, 1) // flip Y
       .multiply(new glx.Matrix.Perspective(refVFOV * height / refHeight, width/height, 0.1, 5000))
-      .translate(0, -1, 0); // camera y offset
+//    .translate(0, -1, 0); // camera y offset
 
     glx.context.viewport(0, 0, width, height);
-
-    this.vpMatrix = new glx.Matrix(glx.Matrix.multiply(this.vMatrix, this.pMatrix));
 
     this.fogRadius = Math.sqrt(width*width + height*height) / 1; // 2 would fit fine but camera is too close
   },

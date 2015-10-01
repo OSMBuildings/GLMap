@@ -2,7 +2,8 @@
 var document = global.document;
 var glx;
 var FOG_COLOR = '#f0f8ff';
-var FOG_RADIUS = 1500;
+var BEND_RADIUS = 500;
+var BEND_DISTANCE = 1000;
 
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
@@ -22,6 +23,9 @@ var GLMap = function(container, options) {
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
+  this.rotation = 0;
+  this.tilt = 0;
+  this.bend = 0;
 
   this.listeners = {};
 
@@ -100,6 +104,12 @@ GLMap.prototype = {
       tilt = parseFloat(state.tilt);
     }
     this.setTilt(tilt || options.tilt || 0);
+
+    var bend;
+    if (state.bend !== undefined) {
+      bend = parseFloat(state.bend);
+    }
+    this.setBend(bend || options.bend || 0);
   },
 
   persistState: function() {
@@ -118,6 +128,7 @@ GLMap.prototype = {
       params.push('lon=' + this.position.longitude.toFixed(5));
       params.push('zoom=' + this.zoom.toFixed(1));
       params.push('tilt=' + this.tilt.toFixed(1));
+      params.push('bend=' + this.bend.toFixed(1));
       params.push('rotation=' + this.rotation.toFixed(1));
       history.replaceState({}, '', '?'+ params.join('&'));
     }.bind(this), 1000);
@@ -198,12 +209,13 @@ GLMap.prototype = {
       y = pos.y-this.center.y;
 
     var scale = 1/Math.pow(2, 16 - this.zoom);
-    var mMatrix = new glx.Matrix()
+    var modelMatrix = new glx.Matrix()
       .translate(0, 0, elevation)
       .scale(scale, scale, scale*HEIGHT_SCALE)
       .translate(x, y, 0);
 
-    var mvp = glx.Matrix.multiply(mMatrix, this.renderer.vpMatrix);
+    var transformProjectionMatrix = new glx.Matrix(glx.Matrix.multiply(this.renderer.transformMatrix, this.renderer.projectionMatrix));
+    var mvp = glx.Matrix.multiply(modelMatrix, transformProjectionMatrix);
 
     var t = glx.Matrix.transform(mvp);
     return { x: t.x*this.width, y: this.height - t.y*this.height, z: t.z }; // takes current cam pos into account.
@@ -307,8 +319,24 @@ GLMap.prototype = {
     return this.tilt;
   },
 
+  setBend: function(bend) {
+    // inception needs tilt=90 for some reason
+    // (should maybe make a separate transf matrix for the tilt that is
+    // applied outside the model transformation) / Janne
+    bend = clamp(parseFloat(bend), 0, 90);
+    if (this.bend !== bend) {
+      this.bend = bend;
+      this.emit('change');
+    }
+    return this;
+  },
+
+  getBend: function() {
+    return this.bend;
+  },
+
   getMatrix: function() {
-    return this.renderer.vpMatrix;
+    return new glx.Matrix(glx.Matrix.multiply(this.renderer.transformMatrix, this.renderer.projectionMatrix));
   },
 
   getFogRadius: function() {

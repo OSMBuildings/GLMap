@@ -83,7 +83,7 @@ SkyDome.prototype = {
     return { vertices: vertices, texCoords: texCoords };
   },
 
-  render: function(vpMatrix) {
+  render: function(transformMatrix, projectionMatrix) {
     if (!this.isReady) {
       return;
     }
@@ -98,11 +98,12 @@ SkyDome.prototype = {
 
     gl.uniform3fv(shader.uniforms.uFogColor, [fogColor.r, fogColor.g, fogColor.b]);
 
-    var mMatrix = new glx.Matrix();
+    var modelMatrix = new glx.Matrix();
     var scale = map.renderer.fogRadius/this.baseRadius;
-    mMatrix.scale(scale, scale, scale);
+    modelMatrix.scale(scale, scale, scale);
 
-    gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
+    var transformProjectionMatrix = new glx.Matrix(glx.Matrix.multiply(transformMatrix, projectionMatrix));
+    gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(modelMatrix, transformProjectionMatrix));
 
     this.vertexBuffer.enable();
     gl.vertexAttribPointer(shader.attributes.aPosition, this.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
