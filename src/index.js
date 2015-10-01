@@ -23,9 +23,6 @@ var GLMap = function(container, options) {
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
-  this.rotation = 0;
-  this.tilt = 0;
-  this.bend = 0;
 
   this.listeners = {};
 

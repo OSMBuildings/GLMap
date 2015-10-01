@@ -57,7 +57,7 @@ Renderer.prototype = {
     this.transformMatrix = new glx.Matrix()
       // altitude of the viewer
       // 250 is good for NY
-//      .translate(0, 0, -250)
+//    .translate(0, 0, -250)
       .rotateZ(map.rotation)
       .rotateX(map.tilt);
   },
@@ -72,10 +72,10 @@ Renderer.prototype = {
       //refVFOV = 120;
 
     this.projectionMatrix = new glx.Matrix()
-//    .translate(0, -height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
+      .translate(0, -height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
       .scale(1, -1, 1) // flip Y
       .multiply(new glx.Matrix.Perspective(refVFOV * height / refHeight, width/height, 0.1, 5000))
-//    .translate(0, -1, 0); // camera y offset
+      .translate(0, -1, 0); // camera y offset
 
     glx.context.viewport(0, 0, width, height);
 
