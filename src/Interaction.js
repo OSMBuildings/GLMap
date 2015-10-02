@@ -1,4 +1,22 @@
 
+function addListener(target, type, fn) {
+  target.addEventListener(type, fn, false);
+}
+
+function removeListener(target, type, fn) {
+  target.removeEventListener(type, fn, false);
+}
+
+function cancelEvent(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+  e.returnValue = false;
+}
+
 var Interaction = function(map, container) {
   this.map = map;
 
@@ -130,7 +148,12 @@ Interaction.prototype = {
   moveMap: function(e) {
     var dx = e.clientX - this.prevX;
     var dy = e.clientY - this.prevY;
-    var r = rotatePoint(dx, dy, this.map.rotation*Math.PI/180);
+    var angle = this.map.rotation * Math.PI/180;
+    // rotate point
+    var r = {
+      x: Math.cos(angle)*dx - Math.sin(angle)*dy,
+      y: Math.sin(angle)*dx + Math.cos(angle)*dy
+    };
     this.map.setCenter({ x: this.map.center.x - r.x, y: this.map.center.y - r.y });
   },
 
@@ -141,7 +164,6 @@ Interaction.prototype = {
     this.map.setTilt(this.prevTilt);
   },
 
-  //***************************************************************************
   //***************************************************************************
 
   onTouchStart: function(e) {

@@ -1,4 +1,9 @@
 
+function distance2(a, b) {
+  var dx = a[0]-b[0], dy = a[1]-b[1];
+  return dx*dx + dy*dy;
+}
+
 GLMap.TileLayer = function(source, options) {
   this.source = source;
   options = options || {};
@@ -12,7 +17,6 @@ GLMap.TileLayer = function(source, options) {
     this.maxZoom = this.minZoom;
   }
 
-//this.bgColor = Color.parse(options.bgColor || '#cccccc').toRGBA(true);
   this.buffer = options.buffer || 1;
 
   this.tiles = {};

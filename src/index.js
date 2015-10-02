@@ -1,6 +1,10 @@
 
 var document = global.document;
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(value, min));
+}
+
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
   options = options || {};
@@ -29,8 +33,6 @@ var GLMap = function(container, options) {
       this.persistState();
     }.bind(this));
   }
-
-  this.fogColor = Color.parse(options.fogColor || FOG_COLOR).toRGBA(true);
 
   this.interaction = new Interaction(this, this.container);
   this.layers      = new Layers(this);
@@ -93,6 +95,12 @@ GLMap.prototype = {
       tilt = parseFloat(state.tilt);
     }
     this.setTilt(tilt || options.tilt || 0);
+
+    var bend;
+    if (state.bend !== undefined) {
+      bend = parseFloat(state.bend);
+    }
+    this.setBend(bend || options.bend || 0);
   },
 
   persistState: function() {
@@ -111,6 +119,7 @@ GLMap.prototype = {
       params.push('lon=' + this.position.longitude.toFixed(5));
       params.push('zoom=' + this.zoom.toFixed(1));
       params.push('tilt=' + this.tilt.toFixed(1));
+      params.push('bend=' + this.bend.toFixed(1));
       params.push('rotation=' + this.rotation.toFixed(1));
       history.replaceState({}, '', '?'+ params.join('&'));
     }.bind(this), 1000);
@@ -276,6 +285,19 @@ GLMap.prototype = {
 
   getTilt: function() {
     return this.tilt;
+  },
+
+  setBend: function(bend) {
+    bend = clamp(parseFloat(bend), 0, 90);
+    if (this.bend !== bend) {
+      this.bend = bend;
+      this.emit('change');
+    }
+    return this;
+  },
+
+  getBend: function() {
+    return this.bend;
   },
 
   addLayer: function(layer) {

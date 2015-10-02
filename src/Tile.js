@@ -6,15 +6,6 @@ GLMap.Tile = function(x, y, zoom) {
 };
 
 GLMap.Tile.prototype = {
-  load: function(url) {
-    //Activity.setBusy();
-    this.texture = new Image();
-    this.texure.onload = function() {
-      //Activity.setIdle();
-      this.isReady = true;
-    }.bind(this);
-    this.texture.url = url;
-  },
-
+  load: function() {},
   destroy: function() {}
 };
