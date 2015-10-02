@@ -1,14 +1,11 @@
 {
-  "lib": [
-    "lib/Color.debug.js"
-  ],
+  "lib": [],
 
   "src": [
     "src/index.js",
     "src/Interaction.js",
     "src/Layers.js",
     "src/TileLayer.js",
-    "src/Tile.js",
-    "src/util.js"
+    "src/Tile.js"
   ]
 }

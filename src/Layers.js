@@ -29,6 +29,12 @@ Layers.prototype = {
     return attribution;
   },
 
+  render: function() {
+    for (var i = 0; i < this.items.length; i++) {
+      this.items[i].render();
+    }
+  },
+
   destroy: function() {
     for (var i = 0; i < this.items.length; i++) {
       this.items[i].destroy();

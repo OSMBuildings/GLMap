@@ -19,7 +19,7 @@ GLMap.TileLayer = function(source, options) {
 
   this.buffer = options.buffer || 1;
 
-  this.tiles = {};
+  this.items = {};
 };
 
 GLMap.TileLayer.prototype = {
@@ -105,12 +105,12 @@ GLMap.TileLayer.prototype = {
     for (tileY = this.minY; tileY < this.maxY; tileY++) {
       for (tileX = this.minX; tileX < this.maxX; tileX++) {
         key = [tileX, tileY, tileZoom].join(',');
-        if (this.tiles[key]) {
+        if (this.items[key]) {
           continue;
         }
-        this.tiles[key] = new GLMap.Tile(tileX, tileY, tileZoom);
+        this.items[key] = new Tile(this, tileX, tileY, tileZoom);
         // TODO: rotate anchor point
-        queue.push({ tile:this.tiles[key], dist:distance2([tileX, tileY], tileAnchor) });
+        queue.push({ tile:this.items[key], dist:distance2([tileX, tileY], tileAnchor) });
       }
     }
 
@@ -132,10 +132,10 @@ GLMap.TileLayer.prototype = {
   },
 
   purge: function() {
-    for (var key in this.tiles) {
-      if (!this.isVisible(this.tiles[key], this.buffer)) {
-        this.tiles[key].destroy();
-        delete this.tiles[key];
+    for (var key in this.items) {
+      if (!this.isVisible(this.items[key], this.buffer)) {
+        this.items[key].destroy();
+        delete this.items[key];
       }
     }
   },
@@ -150,11 +150,30 @@ GLMap.TileLayer.prototype = {
      return (tile.zoom === tileZoom && (tileX >= this.minX-buffer && tileX <= this.maxX+buffer && tileY >= this.minY-buffer && tileY <= this.maxY+buffer));
   },
 
-  destroy: function() {
-    for (var key in this.tiles) {
-      this.tiles[key].destroy();
+  render: function() {
+    var
+      map = this.map,
+      tile,
+      tileZoom = Math.round(map.zoom),
+      ratio = 1 / Math.pow(2, tileZoom - map.zoom),
+      mapCenter = map.center;
+
+    for (var key in this.items) {
+      tile = this.items[key];
+
+      //if (!this.isVisible(tile)) {
+      //  continue;
+      //}
+
+      tile.render(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y);
     }
-    this.tiles = null;
+  },
+
+  destroy: function() {
+    for (var key in this.items) {
+      this.items[key].destroy();
+    }
+    this.items = null;
     this.remove();
   }
 };
