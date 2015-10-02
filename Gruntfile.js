@@ -28,9 +28,6 @@ module.exports = function(grunt) {
 
     copy: {
       dist: [{
-        src: 'src/assets/skydome.jpg',
-        dest: 'dist/GLMap/skydome.jpg'
-      }, {
         src: 'src/assets/style.css',
         dest: 'dist/GLMap/GLMap.css'
       }]
@@ -65,34 +62,9 @@ module.exports = function(grunt) {
     }
   });
 
-  grunt.registerMultiTask('shaders', 'Build shaders', function() {
-    var fs = require('fs');
-    var dest = this.files[0].dest;
-
-    var baseURL = this.files[0].src;
-
-    var config = grunt.file.readJSON('config.json').shaders;
-    var src, name, Shaders = {};
-
-    for (var i = 0; i < config.length; i++) {
-      name = config[i];
-
-      Shaders[name] = {};
-
-      var src = fs.readFileSync(baseURL + '/' + name + '.vs', 'ascii');
-      Shaders[name].vertex = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
-
-      var src = fs.readFileSync(baseURL + '/' + name + '.fs', 'ascii');
-      Shaders[name].fragment = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
-    }
-
-    fs.writeFileSync(dest, 'var Shaders = '+ JSON.stringify(Shaders) +';\n');
-  });
-
   grunt.registerTask('default', 'Development build', function() {
     grunt.log.writeln('\033[1;36m'+ grunt.template.date(new Date(), 'yyyy-mm-dd HH:MM:ss') +'\033[0m');
     grunt.task.run('copy');
-    grunt.task.run('shaders');
     grunt.task.run('concat');
     grunt.task.run('uglify');
   });

@@ -1,17 +1,12 @@
 {
-  "shaders": ["tile", "skydome"],
-
   "lib": [
-    "lib/GLX.debug.js",
     "lib/Color.debug.js"
   ],
 
   "src": [
     "src/index.js",
-    "src/Shaders.min.js",
     "src/Interaction.js",
     "src/Renderer.js",
-    "src/SkyDome.js",
     "src/Layers.js",
     "src/TileLayer.js",
     "src/Tile.js",

@@ -17,25 +17,6 @@ function loadFile(url) {
   return xhr.responseText;
 }
 
-function loadShaders(config) {
-  var src, name, SHADERS = {};
-
-  for (var i = 0; i < config.length; i++) {
-    name = config[i];
-
-    SHADERS[name] = {};
-
-    src = loadFile(baseURL +'src/shaders/'+ name +'.vs');
-    SHADERS[name].vertex = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
-
-    src = loadFile(baseURL +'src/shaders/'+ name +'.fs');
-    SHADERS[name].fragment = src.replace(/'/g, "\'").replace(/[\r\n]+/g, '\n');
-  }
-
-  console.log('SHADERS', SHADERS);
-  return 'var SHADERS = '+ JSON.stringify(SHADERS) +';\n';
-}
-
 var config = JSON.parse(loadFile(baseURL +'config.json'));
 
 var file, str, js = '';
@@ -48,11 +29,7 @@ for (var i = 0; i < config.lib.length; i++) {
 for (var i = 0; i < config.src.length; i++) {
   file = config.src[i];
 
-  if (file === 'src/shaders.js') {
-    str = loadShaders(config.shaders);
-  } else {
-    str = loadFile(baseURL + file);
-  }
+  str = loadFile(baseURL + file);
 
   js += '//****** file: '+ file +' ******\n\n';
   js += str +'\n\n';
