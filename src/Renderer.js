@@ -37,7 +37,7 @@ Renderer.prototype = {
         gl.clearColor(map.fogColor.r, map.fogColor.g, map.fogColor.b, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-//      this.skyDome.render(this.transformMatrix, this.projectionMatrix);
+        this.skyDome.render(this.transformMatrix, this.projectionMatrix);
 
         var layers = map.layers.items;
         for (var i = 0; i < layers.length; i++) {
@@ -57,7 +57,7 @@ Renderer.prototype = {
     this.transformMatrix = new glx.Matrix()
       // altitude of the viewer
       // 250 is good for NY
-//    .translate(0, 0, -250)
+      .translate(0, 0, -150)
       .rotateZ(map.rotation)
       .rotateX(map.tilt);
   },
@@ -69,7 +69,6 @@ Renderer.prototype = {
       height = map.height,
       refHeight = 1024,
       refVFOV = 45;
-      //refVFOV = 120;
 
     this.projectionMatrix = new glx.Matrix()
       .translate(0, -height/2, -1220) // 0, map y offset to neutralize camera y offset, map z -1220 scales map tiles to ~256px
