@@ -28,7 +28,7 @@ module.exports = function(grunt) {
 
     copy: {
       dist: [{
-        src: 'src/assets/style.css',
+        src: 'src/style.css',
         dest: 'dist/GLMap/GLMap.css'
       }]
     },

@@ -1,8 +1,8 @@
 {
   "name": "glmap",
   "private": false,
-  "description": "A basic map engine in WebGL",
-  "version": "0.2.0",
+  "description": "A basic map engine",
+  "version": "0.3.0",
   "homepage": "http://osmbuildings.org",
   "author": "@kekscom",
   "contributors": [],

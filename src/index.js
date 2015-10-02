@@ -1,8 +1,5 @@
 
 var document = global.document;
-var glx;
-var FOG_COLOR = '#f0f8ff';
-var FOG_RADIUS = 1500;
 
 var GLMap = function(container, options) {
   this.container = typeof container === 'string' ? document.getElementById(container) : container;
@@ -11,7 +8,6 @@ var GLMap = function(container, options) {
   this.container.classList.add('glmap-container');
   this.width = this.container.offsetWidth;
   this.height = this.container.offsetHeight;
-  glx = new GLX(this.container, this.width, this.height);
 
   this.minZoom = parseFloat(options.minZoom) || 10;
   this.maxZoom = parseFloat(options.maxZoom) || 20;
@@ -38,7 +34,6 @@ var GLMap = function(container, options) {
 
   this.interaction = new Interaction(this, this.container);
   this.layers      = new Layers(this);
-  this.renderer    = new Renderer(this);
 
   if (options.disabled) {
     this.setDisabled(true);
@@ -49,8 +44,6 @@ var GLMap = function(container, options) {
   this.attributionDiv.className = 'glmap-attribution';
   this.container.appendChild(this.attributionDiv);
   this.updateAttribution();
-
-  this.renderer.start();
 };
 
 GLMap.TILE_SIZE = 256;
@@ -152,10 +145,6 @@ GLMap.prototype = {
 
   //***************************************************************************
 
-  getContext: function() {
-    return glx.context;
-  },
-
   on: function(type, fn) {
     if (!this.listeners[type]) {
       this.listeners[type] = { fn:[] };
@@ -189,24 +178,6 @@ GLMap.prototype = {
       latitude: (2 * Math.atan(Math.exp(Math.PI * (1 - 2*y))) - Math.PI/2) * (180/Math.PI),
       longitude: x*360 - 180
     };
-  },
-
-  transform: function(latitude, longitude, elevation) {
-    var
-      pos = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom)),
-      x = pos.x-this.center.x,
-      y = pos.y-this.center.y;
-
-    var scale = 1/Math.pow(2, 16 - this.zoom);
-    var mMatrix = new glx.Matrix()
-      .translate(0, 0, elevation)
-      .scale(scale, scale, scale*HEIGHT_SCALE)
-      .translate(x, y, 0);
-
-    var mvp = glx.Matrix.multiply(mMatrix, this.renderer.vpMatrix);
-
-    var t = glx.Matrix.transform(mvp);
-    return { x: t.x*this.width, y: this.height - t.y*this.height, z: t.z }; // takes current cam pos into account.
   },
 
   getBounds: function() {
@@ -270,8 +241,8 @@ GLMap.prototype = {
 
   setSize: function(size) {
     if (size.width !== this.width || size.height !== this.height) {
-      glx.context.canvas.width = this.width = size.width;
-      glx.context.canvas.height = this.height = size.height;
+      this.width = size.width;
+      this.height = size.height;
       this.emit('resize');
     }
     return this;
@@ -307,14 +278,6 @@ GLMap.prototype = {
     return this.tilt;
   },
 
-  getMatrix: function() {
-    return this.renderer.vpMatrix;
-  },
-
-  getFogRadius: function() {
-    return this.renderer.fogRadius;
-  },
-
   addLayer: function(layer) {
     this.layers.add(layer);
     this.updateAttribution();
@@ -330,7 +293,6 @@ GLMap.prototype = {
     this.listeners = null;
     this.interaction.destroy();
     this.layers.destroy();
-    this.renderer.destroy();
   }
 };
 

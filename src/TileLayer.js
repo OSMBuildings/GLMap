@@ -15,13 +15,6 @@ GLMap.TileLayer = function(source, options) {
 //this.bgColor = Color.parse(options.bgColor || '#cccccc').toRGBA(true);
   this.buffer = options.buffer || 1;
 
-  this.shader = new glx.Shader({
-    vertexShader: Shaders.tile.vertex,
-    fragmentShader: Shaders.tile.fragment,
-    attributes: ["aPosition", "aTexCoord"],
-    uniforms: ["uMatrix", "uMMatrix", "uTexIndex", "uFogRadius", "uFogColor"]
-  });
-
   this.tiles = {};
 };
 
@@ -151,51 +144,6 @@ GLMap.TileLayer.prototype = {
        tileZoom = Math.round(this.map.zoom);
      // TODO: factor in tile origin
      return (tile.zoom === tileZoom && (tileX >= this.minX-buffer && tileX <= this.maxX+buffer && tileY >= this.minY-buffer && tileY <= this.maxY+buffer));
-  },
-
-  render: function(vpMatrix) {
-    var
-      map = this.map,
-      fogColor = map.fogColor,
-      gl = glx.context,
-      shader = this.shader,
-      tile, mMatrix,
-      tileZoom = Math.round(map.zoom),
-      ratio = 1 / Math.pow(2, tileZoom - map.zoom),
-      mapCenter = map.center;
-
-    shader.enable();
-
-    gl.uniform1f(shader.uniforms.uFogRadius, map.renderer.fogRadius);
-    gl.uniform3fv(shader.uniforms.uFogColor, [fogColor.r, fogColor.g, fogColor.b]);
-
-    for (var key in this.tiles) {
-      tile = this.tiles[key];
-
-      if (!tile.isReady) {
-        continue;
-      }
-
-      mMatrix = new glx.Matrix();
-      mMatrix.scale(ratio * 1.005, ratio * 1.005, 1);
-      mMatrix.translate(tile.x * GLMap.TILE_SIZE * ratio - mapCenter.x, tile.y * GLMap.TILE_SIZE * ratio - mapCenter.y, 0);
-
-      gl.uniformMatrix4fv(shader.uniforms.uMMatrix, false, mMatrix.data);
-      gl.uniformMatrix4fv(shader.uniforms.uMatrix, false, glx.Matrix.multiply(mMatrix, vpMatrix));
-
-      tile.vertexBuffer.enable();
-      gl.vertexAttribPointer(shader.attributes.aPosition, tile.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-      tile.texCoordBuffer.enable();
-      gl.vertexAttribPointer(shader.attributes.aTexCoord, tile.texCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-      tile.texture.enable(0);
-      gl.uniform1i(shader.uniforms.uTexIndex, 0);
-
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, tile.vertexBuffer.numItems);
-    }
-
-    shader.disable();
   },
 
   destroy: function() {
