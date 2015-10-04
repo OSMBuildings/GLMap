@@ -1,7 +1,7 @@
 
 # GLMap
 
-A basic map engine in WebGL. This is used for OSM Buildings (http://osmbuildings.org/gl).
+A very basic map engine. Mostly provicdes events and layer handling. This is used for OSM Buildings (http://osmbuildings.org/).
 
 ## Documentation
 
@@ -28,8 +28,6 @@ In a script section initialize the map and add a map tile layer.
     position: { latitude:52.52000, longitude:13.41000 },
     zoom: 16
   });
-
-  new GLMap.TileLayer('http://{s}.tiles.mapbox.com/v3/osmbuildings.kbpalbpk/{z}/{x}/{y}.png').addTo(map);
 ~~~
 
 ### GLMap Options
@@ -40,6 +38,7 @@ position | object | geo position of map center
 zoom | float | map zoom
 rotation | float | map rotation
 tilt | float | map tilt
+bend | float | map bend
 disabled | boolean | disables user input, default false
 minZoom | float | minimum allowed zoom
 maxZoom | float | maximum allowed zoom
@@ -68,25 +67,10 @@ setRotation | float | sets current rotation
 getRotation | | gets current rotation
 setTilt | float | sets current tilt
 getTilt | | gets current tilt
+setBend | float | sets current bend
+getBend | | gets current bend
 
 ## Examples
-
-### Moving label
-
-This label moves virtually in space.
-
-~~~ html
-<div id="label" style="width:10px;height:10px;position:absolute;z-Index:10;border:3px solid red;"></div>
-~~~
-
-~~~ javascript
-var label = document.getElementById('label');
-map.on('change', function() {
-  var pos = map.transform(52.52, 13.37, 50);
-  label.style.left = Math.round(pos.x) + 'px';
-  label.stye.top = Math.round(pos.y) + 'px';
-});
-~~~
 
 ### Map control buttons
 
@@ -104,6 +88,11 @@ map.on('change', function() {
 <div class="control zoom">
   <button class="dec">-</button>
   <button class="inc">+</button>
+</div>
+
+<div class="control bend">
+  <button class="dec">B-</button>
+  <button class="inc">B+</button>
 </div>
 ~~~
 
@@ -128,6 +117,10 @@ for (var i = 0; i < controlButtons.length; i++) {
     }
     if (parentClassList.contains('zoom')) {
       property = 'Zoom';
+      increment = direction*1;
+    }
+    if (parentClassList.contains('bend')) {
+      property = 'Bend';
       increment = direction*1;
     }
     if (property) {

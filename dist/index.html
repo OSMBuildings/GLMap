@@ -24,7 +24,7 @@
     }
 
     .control.zoom {
-      top: 90px;
+      top: 0;
     }
 
     .control.zoom button{
@@ -83,13 +83,6 @@
       attribution: '© Data <a href="http://osmbuildings.org/copyright/">OpenStreetMap</a>'
     }
   ).addTo(map);
-
-  //***************************************************************************
-
-  // TBD Who should finally run the interval?
-  setInterval(function() {
-    map.layers.render();
-  }, 33);
 
   //***************************************************************************
 

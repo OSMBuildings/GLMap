@@ -148,8 +148,8 @@ Interaction.prototype = {
   moveMap: function(e) {
     var dx = e.clientX - this.prevX;
     var dy = e.clientY - this.prevY;
+    //this.map.setCenter({ x: this.map.center.x - dx, y: this.map.center.y - dy });
     var angle = this.map.rotation * Math.PI/180;
-    // rotate point
     var r = {
       x: Math.cos(angle)*dx - Math.sin(angle)*dy,
       y: Math.sin(angle)*dx + Math.cos(angle)*dy

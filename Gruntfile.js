@@ -13,8 +13,8 @@ module.exports = function(grunt) {
         footer: "}(this));"
       },
       dist: {
-        src: [grunt.file.readJSON('config.json').lib, grunt.file.readJSON('config.json').src],
-        dest:  'dist/GLMap/<%=product%>.debug.js'
+        src: grunt.file.readJSON('config.json'),
+        dest: 'dist/GLMap/<%=product%>.debug.js'
       }
     },
 
@@ -46,7 +46,7 @@ module.exports = function(grunt) {
            Map: true
          }
        },
-      all: grunt.file.readJSON('config.json').src
+      all: grunt.file.readJSON('config.json')
     }
   });
 

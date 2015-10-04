@@ -2,7 +2,7 @@
   "name": "glmap",
   "private": false,
   "description": "A basic map engine",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "homepage": "http://osmbuildings.org",
   "author": "@kekscom",
   "contributors": [],

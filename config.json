@@ -1,11 +1,5 @@
-{
-  "lib": [],
-
-  "src": [
-    "src/index.js",
-    "src/Interaction.js",
-    "src/Layers.js",
-    "src/TileLayer.js",
-    "src/Tile.js"
-  ]
-}
+[
+  "src/index.js",
+  "src/Interaction.js",
+  "src/Layers.js"
+]
