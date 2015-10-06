@@ -20,6 +20,8 @@ var GLMap = function(container, options) {
     this.maxZoom = this.minZoom;
   }
 
+  this.bounds = options.bounds || { n:90, e:180, s:-90, w:-180 };
+
   this.center = { x:0, y:0 };
   this.zoom = 0;
 
@@ -237,8 +239,8 @@ GLMap.prototype = {
 
   setPosition: function(pos) {
     var
-      latitude  = clamp(parseFloat(pos.latitude), -90, 90),
-      longitude = clamp(parseFloat(pos.longitude), -180, 180),
+      latitude  = clamp(parseFloat(pos.latitude), this.bounds.s, this.bounds.n),
+      longitude = clamp(parseFloat(pos.longitude), this.bounds.w, this.bounds.e),
       center = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
     this.setCenter(center);
     return this;
