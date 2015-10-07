@@ -44,6 +44,7 @@ minZoom | float | minimum allowed zoom
 maxZoom | float | maximum allowed zoom
 attribution | string | attribution, optional
 state | boolean | stores map position/rotation in url, default false
+bounds | object | n, e, s, w coordinates of bounds where the map can be moved within
 
 ### GLMap methods
 
