@@ -20,7 +20,7 @@ var GLMap = function(container, options) {
     this.maxZoom = this.minZoom;
   }
 
-  this.bounds = options.bounds || { n:90, e:180, s:-90, w:-180 };
+  this.bounds = options.bounds;
 
   this.center = { x:0, y:0 };
   this.zoom = 0;
@@ -128,9 +128,18 @@ GLMap.prototype = {
   },
 
   setCenter: function(center) {
+    var worldSize = GLMap.TILE_SIZE*Math.pow(2, this.zoom);
+    if (this.bounds) {
+      var
+        min = this.project(this.bounds.s, this.bounds.w, worldSize),
+        max = this.project(this.bounds.n, this.bounds.e, worldSize);
+      center.x = clamp(center.x, min.x, max.x);
+      center.y = clamp(center.y, min.y, max.y);
+    }
+
     if (this.center.x !== center.x || this.center.y !== center.y) {
       this.center = center;
-      this.position = this.unproject(center.x, center.y, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
+      this.position = this.unproject(center.x, center.y, worldSize);
       this.emit('change');
     }
   },
@@ -239,8 +248,8 @@ GLMap.prototype = {
 
   setPosition: function(pos) {
     var
-      latitude  = clamp(parseFloat(pos.latitude), this.bounds.s, this.bounds.n),
-      longitude = clamp(parseFloat(pos.longitude), this.bounds.w, this.bounds.e),
+      latitude  = clamp(parseFloat(pos.latitude), -90, 90),
+      longitude = clamp(parseFloat(pos.longitude), -180, 180),
       center = this.project(latitude, longitude, GLMap.TILE_SIZE*Math.pow(2, this.zoom));
     this.setCenter(center);
     return this;
