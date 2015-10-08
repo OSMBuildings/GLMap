@@ -177,7 +177,7 @@ Interaction.prototype = {
     this.prevRotation = this.map.rotation;
     this.prevTilt = this.map.tilt;
 
-    if (e.touches.length>1) {
+    if (e.touches.length) {
       e = e.touches[0];
     }
 
@@ -192,7 +192,7 @@ Interaction.prototype = {
       return;
     }
 
-    if (e.touches.length>1) {
+    if (e.touches.length) {
       e = e.touches[0];
     }
 
@@ -209,7 +209,7 @@ Interaction.prototype = {
       return;
     }
 
-    if (e.touches.length>1) {
+    if (e.touches.length) {
       e = e.touches[0];
     }
 
