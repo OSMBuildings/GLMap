@@ -2,8 +2,6 @@
 module.exports = function(grunt) {
 
   grunt.initConfig({
-    product: 'GLMap',
-
     pkg: grunt.file.readJSON('package.json'),
 
     concat: {
@@ -14,15 +12,15 @@ module.exports = function(grunt) {
       },
       dist: {
         src: grunt.file.readJSON('config.json'),
-        dest: 'dist/GLMap/<%=product%>.debug.js'
+        dest: 'dist/GLMap/<%=pkg.name%>.debug.js'
       }
     },
 
     uglify: {
       options: {},
       build: {
-        src: 'dist/GLMap/<%=product%>.debug.js',
-        dest: 'dist/GLMap/<%=product%>.js'
+        src: 'dist/GLMap/<%=pkg.name%>.debug.js',
+        dest: 'dist/GLMap/<%=pkg.name%>.js'
       }
     },
 
