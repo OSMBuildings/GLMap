@@ -155,12 +155,12 @@ GLMap.prototype = {
       return;
     }
 
-    listeners.timer = setTimeout(function() {
+    requestAnimationFrame(function() {
       for (var i = 0, il = listeners.fn.length; i < il; i++) {
         listeners.fn[i](payload);
       }
       listeners.timer = null;
-    }.bind(this), 17);
+    }.bind(this));
   },
 
   //***************************************************************************
