@@ -30,9 +30,6 @@ Layers.prototype = {
   },
 
   destroy: function() {
-    for (var i = 0; i < this.items.length; i++) {
-      this.items[i].destroy();
-    }
     this.items = [];
   }
 };
