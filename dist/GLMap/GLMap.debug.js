@@ -332,6 +332,7 @@ GLMap.prototype = {
     this.listeners = [];
     this.interaction.destroy();
     this.layers.destroy();
+    this.container.innerHTML = '';
   }
 };
 
