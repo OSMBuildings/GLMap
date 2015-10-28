@@ -584,6 +584,7 @@ Interaction.prototype = {
       listener = this._listeners[i];
       listener.target.removeEventListener(listener.type, listener.fn, false);
     }
+    this._listeners = [];
   }
 };
 
