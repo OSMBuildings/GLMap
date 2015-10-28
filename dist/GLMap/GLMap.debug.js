@@ -329,7 +329,7 @@ GLMap.prototype = {
   },
 
   destroy: function() {
-    this.listeners = null;
+    this.listeners = [];
     this.interaction.destroy();
     this.layers.destroy();
   }
@@ -622,7 +622,7 @@ Layers.prototype = {
     for (var i = 0; i < this.items.length; i++) {
       this.items[i].destroy();
     }
-    this.items = null;
+    this.items = [];
   }
 };
 }(this));

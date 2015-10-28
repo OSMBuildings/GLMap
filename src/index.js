@@ -329,7 +329,7 @@ GLMap.prototype = {
   },
 
   destroy: function() {
-    this.listeners = null;
+    this.listeners = [];
     this.interaction.destroy();
     this.layers.destroy();
   }
