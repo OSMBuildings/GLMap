@@ -1,7 +1,7 @@
 
 # GLMap
 
-A very basic map engine. Mostly provicdes events and layer handling. This is used for OSM Buildings (http://osmbuildings.org/).
+A very basic map engine. Mostly provides events and layer handling. This is used for OSM Buildings (http://osmbuildings.org/).
 
 ## Documentation
 
