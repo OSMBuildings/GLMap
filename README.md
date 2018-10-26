@@ -1,3 +1,7 @@
+# THIS REPOSITORY IS NO LONGER MAINTAINED
+
+Functionality is now fully integrated in OSM Buildings viewer.
+https://github.com/OSMBuildings/OSMBuildings
 
 # GLMap
 
